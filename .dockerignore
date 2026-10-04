@@ -1,0 +1,8 @@
+node_modules
+server/node_modules
+dist
+.git
+server/.env
+deploy/.env.production
+docs
+*.png

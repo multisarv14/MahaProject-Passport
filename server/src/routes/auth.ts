@@ -18,7 +18,7 @@ async function issue(app: FastifyInstance, userId: string) {
 }
 
 export default async function authRoutes(app: FastifyInstance) {
-  app.post('/auth/otp', async (req, reply) => {
+  app.post('/auth/otp', { config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } }, async (req, reply) => {
     const { mobile } = z.object({ mobile: z.string().regex(/^\d{10}$/) }).parse(req.body)
     const [u] = await sql`SELECT id FROM users WHERE mobile = ${mobile} AND active`
     // Same response whether or not the number exists, so the endpoint cannot be used to discover users.
@@ -33,7 +33,7 @@ export default async function authRoutes(app: FastifyInstance) {
     return { sent: true, ...(demo() && u ? { devCode: code } : {}) }
   })
 
-  app.post('/auth/verify', async (req, reply) => {
+  app.post('/auth/verify', { config: { rateLimit: { max: 20, timeWindow: '10 minutes' } } }, async (req, reply) => {
     const { mobile, code } = z.object({ mobile: z.string(), code: z.string().length(6) }).parse(req.body)
     const [otp] = await sql`SELECT id, code_hash, attempts FROM otp_requests
       WHERE mobile = ${mobile} AND NOT used AND expires_at > now() ORDER BY created_at DESC LIMIT 1`
@@ -48,7 +48,7 @@ export default async function authRoutes(app: FastifyInstance) {
   })
 
   // Demo only: one-click sign-in as any persona. Disabled unless DEMO_MODE=true.
-  app.post('/auth/demo-login', async (req, reply) => {
+  app.post('/auth/demo-login', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req, reply) => {
     if (!demo()) return reply.code(404).send({ error: 'NOT_FOUND' })
     const { userId } = z.object({ userId: z.string() }).parse(req.body)
     const r = await issue(app, userId)

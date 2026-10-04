@@ -6,3 +6,4 @@ server/node_modules
 server/.env
 *.png
 !public/**/*.png
+deploy/.env.production

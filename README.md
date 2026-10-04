@@ -41,6 +41,8 @@ npm run dev
 
 Tests: `cd server && npm test`. Type checks: `npm run lint` in both folders.
 
+Server deployment (Oracle Linux, Docker, HTTPS, backups): see [docs/deployment.md](docs/deployment.md).
+
 ## Department data and matching
 
 1. **Upload** (Data Sources): CSV/XLSX → columns are matched to fields by header name (Marathi or English) → every row is checked → accepted rows are saved; rejected rows are listed with the reason.

@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import multipart from '@fastify/multipart'
+import rateLimit from '@fastify/rate-limit'
 import { ZodError } from 'zod'
 import authRoutes from './routes/auth.ts'
 import caseRoutes from './routes/cases.ts'
@@ -9,9 +10,15 @@ import ingestRoutes from './routes/ingest.ts'
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is not set')
 
-const app = Fastify({ logger: { level: 'info' } })
+const production = process.env.NODE_ENV === 'production'
+if (production && process.env.JWT_SECRET.length < 32) throw new Error('JWT_SECRET must be at least 32 characters in production')
 
-await app.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') ?? true })
+// trustProxy: the API runs behind Caddy, so client IPs come from X-Forwarded-For.
+const app = Fastify({ logger: { level: 'info' }, trustProxy: true, bodyLimit: 1024 * 1024 })
+
+// Same-origin in production (Caddy serves web and API together); open in development.
+await app.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') ?? !production })
+await app.register(rateLimit, { max: 300, timeWindow: '1 minute' })
 await app.register(jwt, { secret: process.env.JWT_SECRET })
 await app.register(multipart, { limits: { fileSize: 25 * 1024 * 1024, files: 1 } })
 
@@ -27,7 +34,9 @@ app.setErrorHandler((err, _req, reply) => {
   return reply.code(500).send({ error: 'SERVER_ERROR', message: 'Something went wrong. Please try again.' })
 })
 
-app.get('/health', async () => ({ ok: true }))
+const health = async () => ({ ok: true })
+app.get('/health', health)
+app.get('/api/health', health)
 await app.register(authRoutes, { prefix: '/api' })
 await app.register(caseRoutes, { prefix: '/api' })
 await app.register(ingestRoutes, { prefix: '/api' })
