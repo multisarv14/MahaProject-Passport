@@ -36,8 +36,13 @@ export async function api<T>(path: string, init?: { method?: string; body?: unkn
     const message = data.message ?? (res.status >= 502 ? UNREACHABLE : `Request failed (${res.status})`)
     throw new ApiError(res.status, data.error ?? 'ERROR', message)
   }
+  if (init?.method && init.method !== 'GET') notifyDataChanged()
   return data as T
 }
+
+/** Fired after any successful change, so counters elsewhere on screen (e.g. "My work") refresh. */
+export const DATA_CHANGED = 'maha-passport:data-changed'
+const notifyDataChanged = () => window.dispatchEvent(new Event(DATA_CHANGED))
 
 /** Multipart upload (file + fields). JSON helpers above cannot send files. */
 export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
@@ -50,5 +55,6 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   }
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new ApiError(res.status, data.error ?? 'ERROR', data.message ?? (res.status >= 502 ? UNREACHABLE : `Upload failed (${res.status})`))
+  notifyDataChanged()
   return data as T
 }

@@ -63,6 +63,11 @@ sudo docker compose -f docker-compose.prod.yml --env-file deploy/.env.production
 - [ ] Written data-sharing order from the competent authority.
 - [ ] Backups copied to a second location and a restore tested.
 
+## Rate limits
+
+- Signed-in users: 600 requests per minute per session (not per IP, because an office usually shares one public IP).
+- OTP: 5 per mobile number per 10 minutes, 5 attempts per OTP, and 100 OTP requests per IP per 10 minutes.
+
 ## Health check
 
 `https://<domain>/api/health` returns `{"ok":true}`.

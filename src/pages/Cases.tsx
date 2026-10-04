@@ -14,9 +14,12 @@ const PAGE = 50
 export default function Cases() {
   const { t, lang, persona } = useStore()
   const [params] = useSearchParams()
+  const urlWard = () => (params.get('ward') === '0' ? -1 : Number(params.get('ward') ?? 0))
   const [status, setStatus] = useState<CaseStatus | ''>((params.get('status') as CaseStatus) ?? '')
   const [rule, setRule] = useState<RuleId | ''>('')
-  const [ward, setWard] = useState(0)
+  const [ward, setWard] = useState(urlWard)
+  // Menu links (e.g. "Awaiting my approval") change the query while this page stays open.
+  useEffect(() => { setStatus((params.get('status') as CaseStatus) ?? ''); setWard(urlWard()) }, [params]) // eslint-disable-line react-hooks/exhaustive-deps
   const [sort, setSort] = useState<'demand' | 'newest'>('demand')
   const [limit, setLimit] = useState(PAGE)
   useEffect(() => setLimit(PAGE), [status, rule, ward, sort])

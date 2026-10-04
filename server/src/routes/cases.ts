@@ -269,6 +269,34 @@ export default async function caseRoutes(app: FastifyInstance) {
     }
   })
 
+  // What is waiting for the signed-in user, for the "My work" menu. Only counts, scoped like everything else.
+  app.get('/my-work', async req => {
+    const u = req.user
+    const [c] = await sql`SELECT
+        count(*) FILTER (WHERE c.status = 'suspected' AND p.ward <> 0)::int AS assign,
+        count(*) FILTER (WHERE c.status = 'suspected' AND p.ward = 0)::int AS set_ward,
+        count(*) FILTER (WHERE c.status = 'assigned' AND c.assigned_to = ${u.id})::int AS visits,
+        count(*) FILTER (WHERE c.status = 'verified')::int AS approve,
+        count(*) FILTER (WHERE c.status = 'objection')::int AS hearing,
+        count(*) FILTER (WHERE c.status = 'notice_sent')::int AS payment
+      FROM cases c JOIN properties p ON p.id = c.property_id WHERE ${scope(sql, u)}`
+    const [m] = await sql`SELECT
+        (SELECT count(*) FROM match_reviews WHERE status = 'pending')::int AS review,
+        (SELECT count(*) FROM source_records WHERE property_id IS NULL AND match_status = 'pending')::int AS match_pending,
+        (SELECT count(*) FROM uploads WHERE status = 'staged' AND uploaded_by = ${u.id})::int AS unfinished_uploads`
+    const all: Record<string, number> = { ...c, ...m }
+    const keys: Record<string, string[]> = {
+      ward_officer: ['assign'],
+      assessment_officer: ['approve', 'set_ward', 'review', 'match_pending'],
+      commissioner: ['approve', 'review', 'hearing'],
+      inspector: ['visits'],
+      hearing_officer: ['hearing'],
+      recovery_clerk: ['payment'],
+      platform_admin: ['match_pending', 'review'],
+    }
+    return (keys[u.role] ?? []).map(k => ({ key: k, count: all[k] ?? 0 }))
+  })
+
   app.get('/citizen/my-property', { preHandler: requireRole('citizen') }, async req => {
     const [p] = await sql`SELECT id FROM properties WHERE owner_user_id = ${req.user.id} LIMIT 1`
     if (!p) return null

@@ -1,12 +1,13 @@
-import { useState, type ReactNode } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3, Bell, Building2, ClipboardList, Database, FileSearch, Gavel, GitMerge, Landmark, LayoutDashboard,
-  LogOut, Map, Menu, BadgeCheck, ScrollText, Settings, ShieldCheck, Smartphone, Store, Users, Wallet, FileText,
+  LogOut, Map, Menu, BadgeCheck, ListTodo, ScrollText, Settings, ShieldCheck, Smartphone, Store, Users, Wallet, FileText,
 } from 'lucide-react'
 import { useStore } from '../store/store'
 import { CITY } from '../data/mock'
 import { useApi } from '../api/useApi'
+import { api, DATA_CHANGED } from '../api/client'
 import { ROLES } from '../lib/labels'
 import type { RoleId } from '../data/types'
 import { cx } from './ui'
@@ -19,7 +20,8 @@ const OFFICIALS: RoleId[] = ['platform_admin', 'commissioner', 'assessment_offic
 export const NAV: Group[] = [
   {
     mr: 'मुख्य', en: 'Main', items: [
-      { to: '/', mr: 'Dashboard', en: 'Dashboard', icon: <LayoutDashboard size={17} />, roles: 'all' },
+      // Roles whose home is another page (field app, district view, …) reach it from their own menu item instead.
+      { to: '/', mr: 'Dashboard', en: 'Dashboard', icon: <LayoutDashboard size={17} />, roles: ['platform_admin', 'commissioner', 'assessment_officer', 'ward_officer'] },
       { to: '/registry', mr: 'Passport शोध', en: 'Passport Registry', icon: <FileSearch size={17} />, roles: OFFICIALS },
     ],
   },
@@ -28,9 +30,9 @@ export const NAV: Group[] = [
       { to: '/sources', mr: 'विभागांचा data', en: 'Data Sources', icon: <Database size={17} />, roles: ['platform_admin', 'dept_data_officer', 'commissioner', 'assessment_officer'] },
       { to: '/matching', mr: 'जुळवणी', en: 'Matching', icon: <GitMerge size={17} />, roles: ['platform_admin', 'commissioner', 'assessment_officer'] },
       { to: '/cases', mr: 'संशयित प्रकरणे', en: 'Cases', icon: <ClipboardList size={17} />, roles: OFFICIALS },
-      { to: '/field', mr: 'प्रत्यक्ष पाहणी (Mobile)', en: 'Field App (Mobile)', icon: <Smartphone size={17} />, roles: ['inspector', 'ward_officer', 'platform_admin'] },
-      { to: '/objections', mr: 'हरकती', en: 'Objections', icon: <Gavel size={17} />, roles: ['hearing_officer', 'assessment_officer', 'commissioner', 'platform_admin'] },
-      { to: '/recovery', mr: 'वसुली', en: 'Recovery', icon: <Wallet size={17} />, roles: ['recovery_clerk', 'assessment_officer', 'commissioner', 'platform_admin'] },
+      { to: '/field', mr: 'प्रत्यक्ष पाहणी (Mobile)', en: 'Field App (Mobile)', icon: <Smartphone size={17} />, roles: ['ward_officer', 'platform_admin'] },
+      { to: '/objections', mr: 'हरकती', en: 'Objections', icon: <Gavel size={17} />, roles: ['assessment_officer', 'commissioner', 'platform_admin'] },
+      { to: '/recovery', mr: 'वसुली', en: 'Recovery', icon: <Wallet size={17} />, roles: ['assessment_officer', 'commissioner', 'platform_admin'] },
       { to: '/resolved', mr: 'निकाली प्रकरणे व महसूल', en: 'Resolved & Revenue', icon: <BadgeCheck size={17} />, roles: ['commissioner', 'assessment_officer', 'recovery_clerk', 'ward_officer', 'auditor', 'platform_admin'] },
     ],
   },
@@ -57,6 +59,51 @@ export const NAV: Group[] = [
   },
 ]
 
+/** "My work" entries: what is waiting for this role, with a count from /my-work. */
+const WORK: Record<string, { mr: string; en: string; to: string }> = {
+  assign: { mr: 'सोपवायची प्रकरणे', en: 'Cases to assign', to: '/cases?status=suspected' },
+  set_ward: { mr: 'प्रभाग निश्चित करायचे', en: 'Ward to be set', to: '/cases?status=suspected&ward=0' },
+  visits: { mr: 'माझ्या पाहण्या', en: 'My site visits', to: '/field' },
+  approve: { mr: 'मंजुरीसाठी प्रकरणे', en: 'Awaiting my approval', to: '/cases?status=verified' },
+  hearing: { mr: 'सुनावणी बाकी', en: 'Hearings pending', to: '/objections' },
+  payment: { mr: 'भरणा बाकी नोटिसा', en: 'Notices awaiting payment', to: '/recovery' },
+  review: { mr: 'जुळवणी पडताळणी', en: 'Match reviews', to: '/matching' },
+  match_pending: { mr: 'जुळवणी बाकी नोंदी', en: 'Records to match', to: '/matching' },
+  unfinished_uploads: { mr: 'अपूर्ण upload', en: 'Unfinished uploads', to: '/sources' },
+}
+
+function MyWork({ onNavigate }: { onNavigate: () => void }) {
+  const { t } = useStore()
+  const loc = useLocation()
+  const [items, setItems] = useState<{ key: string; count: number }[]>([])
+  const [tick, setTick] = useState(0)
+  // Refresh on navigation and after any change (approve, assign, payment…), so counts drop as work gets done.
+  useEffect(() => {
+    const bump = () => setTick(x => x + 1)
+    window.addEventListener(DATA_CHANGED, bump)
+    return () => window.removeEventListener(DATA_CHANGED, bump)
+  }, [])
+  useEffect(() => { api<{ key: string; count: number }[]>('/my-work').then(setItems).catch(() => {}) }, [loc.pathname, loc.search, tick])
+  if (!items.length) return null
+  const here = loc.pathname + loc.search
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 px-3 pb-1 text-[11px] font-semibold tracking-wide text-file uppercase"><ListTodo size={13} />{t('माझे काम', 'My work')}</div>
+      {items.map(i => {
+        const w = WORK[i.key]
+        if (!w) return null
+        return (
+          <Link key={i.key} to={w.to} onClick={onNavigate}
+            className={cx('flex items-center gap-2.5 rounded px-3 py-2 text-[14px]', here === w.to ? 'bg-white/12 font-semibold text-white' : 'text-white/80 hover:bg-white/5 hover:text-white')}>
+            <span className="flex-1">{t(w.mr, w.en)}</span>
+            <span className={cx('tnum min-w-[1.75rem] rounded-full px-1.5 py-0.5 text-center text-xs font-bold', i.count ? 'bg-file text-ink' : 'bg-white/10 text-white/50')}>{i.count}</span>
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
 export function Layout() {
   const { persona, lang, setLang, t, demoLogin, logout } = useStore()
   const { data: demoUsers } = useApi<{ id: string; name: string; role: RoleId }[]>('/demo/users')
@@ -78,6 +125,7 @@ export function Layout() {
           </div>
         </div>
         <nav className="flex flex-col gap-4 px-2 py-4">
+          <MyWork onNavigate={() => setOpen(false)} />
           {groups.map(g => (
             <div key={g.en}>
               <div className="px-3 pb-1 text-[11px] font-semibold tracking-wide text-white/45 uppercase">{t(g.mr, g.en)}</div>

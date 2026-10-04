@@ -24,7 +24,7 @@ async function issue(app: FastifyInstance, userId: string) {
 }
 
 export default async function authRoutes(app: FastifyInstance) {
-  app.post('/auth/otp', { config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } }, async (req, reply) => {
+  app.post('/auth/otp', { config: { rateLimit: { max: 100, timeWindow: '10 minutes', keyGenerator: req => 'otp-ip:' + req.ip } } }, async (req, reply) => {
     const { mobile } = z.object({ mobile: z.string().regex(/^\d{10}$/) }).parse(req.body)
     const [u] = await sql`SELECT id FROM users WHERE mobile = ${mobile} AND active`
     // Same response whether or not the number exists, so the endpoint cannot be used to discover users.
@@ -40,7 +40,7 @@ export default async function authRoutes(app: FastifyInstance) {
     return { sent: true, ...(demo() && u && !fixed ? { devCode: code } : {}) }
   })
 
-  app.post('/auth/verify', { config: { rateLimit: { max: 20, timeWindow: '10 minutes' } } }, async (req, reply) => {
+  app.post('/auth/verify', { config: { rateLimit: { max: 200, timeWindow: '10 minutes', keyGenerator: req => 'verify-ip:' + req.ip } } }, async (req, reply) => {
     const { mobile, code } = z.object({ mobile: z.string(), code: z.string().length(6) }).parse(req.body)
     const [otp] = await sql`SELECT id, code_hash, attempts FROM otp_requests
       WHERE mobile = ${mobile} AND NOT used AND expires_at > now() ORDER BY created_at DESC LIMIT 1`

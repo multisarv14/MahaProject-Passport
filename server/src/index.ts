@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
@@ -18,7 +19,16 @@ const app = Fastify({ logger: { level: 'info' }, trustProxy: true, bodyLimit: 10
 
 // Same-origin in production (Caddy serves web and API together); open in development.
 await app.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') ?? !production })
-await app.register(rateLimit, { max: 300, timeWindow: '1 minute' })
+// Limit per signed-in session, not per IP: a whole municipal office often shares one public IP.
+// Unauthenticated requests (login, OTP) are limited per IP.
+await app.register(rateLimit, {
+  max: 600,
+  timeWindow: '1 minute',
+  keyGenerator: req => {
+    const auth = req.headers.authorization
+    return auth ? 'session:' + createHash('sha256').update(auth).digest('hex').slice(0, 32) : 'ip:' + req.ip
+  },
+})
 await app.register(jwt, { secret: process.env.JWT_SECRET })
 await app.register(multipart, { limits: { fileSize: 25 * 1024 * 1024, files: 1 } })
 
