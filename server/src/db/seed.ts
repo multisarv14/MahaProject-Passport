@@ -17,7 +17,9 @@ const wardsFor: Record<string, number[] | null> = {
 }
 
 await sql.begin(async tx => {
-  await tx`TRUNCATE messages, payments, objections, visits, cases, source_records, uploads, properties, otp_requests, users, offices RESTART IDENTITY CASCADE`
+  await tx`TRUNCATE match_reviews, matching_runs, upload_rows, messages, payments, objections, visits, cases, source_records, uploads, properties, otp_requests, users, offices RESTART IDENTITY CASCADE`
+  await tx`ALTER SEQUENCE passport_no_seq RESTART WITH 1001`
+  await tx`ALTER SEQUENCE case_no_seq RESTART WITH 5001`
   // audit_log rows cannot be deleted row by row; TRUNCATE is allowed for demo resets only.
   await tx`TRUNCATE audit_log RESTART IDENTITY`
 
@@ -36,8 +38,8 @@ await sql.begin(async tx => {
   }
   let i = 10
   for (const p of PERSONAS) {
-    await tx`INSERT INTO users (id, name, mobile, role, office_id, office_name, wards)
-      VALUES (${p.id}, ${p.name}, ${'90000000' + i++}, ${p.role}, ${officeOf[p.role] ?? 'city-nmn'}, ${p.office}, ${wardsFor[p.id] ?? null})`
+    await tx`INSERT INTO users (id, name, mobile, role, office_id, office_name, wards, data_source)
+      VALUES (${p.id}, ${p.name}, ${'90000000' + i++}, ${p.role}, ${officeOf[p.role] ?? 'city-nmn'}, ${p.office}, ${wardsFor[p.id] ?? null}, ${p.id === 'u_do' ? 'elec' : null})`
   }
 
   const rows = PROPERTIES.map(p => ({
@@ -46,7 +48,7 @@ await sql.begin(async tx => {
   }))
   await tx`INSERT INTO properties ${tx(rows)}`
 
-  const recs: { source: string; ref_no: string; property_id: string; data: object }[] = []
+  const recs: { source: string; ref_no: string; property_id: string; data: object; address?: string; name?: string; ward?: number }[] = []
   for (const p of PROPERTIES) {
     if (p.tax) recs.push({ source: 'tax', ref_no: p.tax.taxNo + '#' + p.id.slice(-6), property_id: p.id, data: p.tax })
     if (p.oc) recs.push({ source: 'oc', ref_no: p.oc.ocNo + '#' + p.id.slice(-6), property_id: p.id, data: p.oc })
@@ -54,8 +56,9 @@ await sql.begin(async tx => {
     if (p.igr) recs.push({ source: 'igr', ref_no: p.igr.docNo + '#' + p.id.slice(-6), property_id: p.id, data: p.igr })
     if (p.water) recs.push({ source: 'water', ref_no: p.water.connNo + '#' + p.id.slice(-6), property_id: p.id, data: p.water })
   }
+  for (const r of recs) { const p = PROPERTY_BY_ID[r.property_id]; r.address = p.address; r.ward = p.ward; r.name = p.owner }
   for (let k = 0; k < recs.length; k += 500) {
-    await tx`INSERT INTO source_records ${tx(recs.slice(k, k + 500).map(r => ({ ...r, data: tx.json(r.data as never) })))}`
+    await tx`INSERT INTO source_records ${tx(recs.slice(k, k + 500).map(r => ({ ...r, data: tx.json(r.data as never), match_status: 'linked', match_score: 1 })))}`
   }
 
   for (const c of INITIAL_CASES) {

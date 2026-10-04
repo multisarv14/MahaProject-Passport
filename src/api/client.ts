@@ -29,3 +29,12 @@ export async function api<T>(path: string, init?: { method?: string; body?: unkn
   }
   return data as T
 }
+
+/** Multipart upload (file + fields). JSON helpers above cannot send files. */
+export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
+  const token = tokenStore.get()
+  const res = await fetch('/api' + path, { method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {}, body: form })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new ApiError(res.status, data.error ?? 'ERROR', data.message ?? 'Upload failed')
+  return data as T
+}

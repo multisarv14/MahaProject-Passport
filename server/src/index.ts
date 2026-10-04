@@ -1,9 +1,11 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
+import multipart from '@fastify/multipart'
 import { ZodError } from 'zod'
 import authRoutes from './routes/auth.ts'
 import caseRoutes from './routes/cases.ts'
+import ingestRoutes from './routes/ingest.ts'
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is not set')
 
@@ -11,6 +13,7 @@ const app = Fastify({ logger: { level: 'info' } })
 
 await app.register(cors, { origin: process.env.CORS_ORIGIN?.split(',') ?? true })
 await app.register(jwt, { secret: process.env.JWT_SECRET })
+await app.register(multipart, { limits: { fileSize: 25 * 1024 * 1024, files: 1 } })
 
 app.setErrorHandler((err, _req, reply) => {
   if (err instanceof ZodError) {
@@ -27,5 +30,6 @@ app.setErrorHandler((err, _req, reply) => {
 app.get('/health', async () => ({ ok: true }))
 await app.register(authRoutes, { prefix: '/api' })
 await app.register(caseRoutes, { prefix: '/api' })
+await app.register(ingestRoutes, { prefix: '/api' })
 
 await app.listen({ port: Number(process.env.PORT ?? 4000), host: '0.0.0.0' })

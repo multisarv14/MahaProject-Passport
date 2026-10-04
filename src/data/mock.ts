@@ -1,8 +1,11 @@
 // All data in this file is fictional and generated for the demo.
 // "नमुनानगर" (Namunanagar) is an invented city; no person or record is real.
 import type {
-  AuditEntry, Business, Case, CaseStatus, Persona, Property, RuleId, Usage,
+  AuditEntry, Business, Case, CaseStatus, Persona, Property, Usage,
 } from './types'
+import { RATE, estimateDemand, rulesFor } from '../lib/rules'
+
+export { RATE }
 
 export const TODAY = '2026-10-04'
 export const CITY = { mr: 'नमुनानगर महानगरपालिका', en: 'Namunanagar Municipal Corporation' }
@@ -29,6 +32,7 @@ const dateBack = (days: number) => {
 
 export const WARDS = [1, 2, 3, 4, 5, 6, 7, 8]
 export const WARD_NAMES: Record<number, string> = {
+  0: 'प्रभाग निश्चित नाही',
   1: 'स्टेशन परिसर', 2: 'बाजार पेठ', 3: 'गणेश नगर', 4: 'नवीन वसाहत',
   5: 'औद्योगिक वसाहत', 6: 'नदीकाठ', 7: 'विद्यानगर', 8: 'पाटील मळा',
 }
@@ -58,10 +62,9 @@ export const PERSONAS: Persona[] = [
   { id: 'u_cit', name: 'दत्तात्रय मोरे', role: 'citizen', office: 'मालमत्ताधारक' },
 ]
 
-export const inspectorForWard = (ward: number) =>
-  PERSONAS.find(p => p.role === 'inspector' && (p.ward === ward || p.ward === ward - 1 && ward % 2 === 0))!
+export const inspectorForWard = (ward: number): Persona | undefined =>
+  PERSONAS.find(p => p.role === 'inspector' && (p.ward === ward || p.ward === ward - 1 && ward % 2 === 0))
 
-export const RATE: Record<Usage, number> = { residential: 3, commercial: 8, mixed: 5.5 }
 
 function makeProperties(): Property[] {
   const out: Property[] = []
@@ -128,27 +131,6 @@ function makeProperties(): Property[] {
   return out
 }
 
-export function rulesFor(p: Property): RuleId[] {
-  const r: RuleId[] = []
-  if (p.oc && !p.tax) r.push('R1')
-  if (p.elec && !p.tax) r.push('R2')
-  if (p.tax && p.elec && p.tax.usage === 'residential' && p.elec.category === 'LT-II व्यावसायिक') r.push('R3')
-  if (p.igr && p.tax && p.tax.owner !== p.igr.buyer) r.push('R4')
-  if (p.oc && p.tax && p.oc.builtUpArea > p.tax.assessedArea * 1.1) r.push('R5')
-  if (p.water && !p.tax) r.push('R6')
-  return r
-}
-
-export function estimateDemand(p: Property, rules: RuleId[]): number {
-  let d = 0
-  if (!p.tax && (rules.includes('R1') || rules.includes('R2') || rules.includes('R6'))) {
-    d += p.area * RATE[p.usage] * 3
-  }
-  if (rules.includes('R3') && p.tax) d += p.tax.assessedArea * (RATE[p.usage] - RATE.residential) * 2
-  if (rules.includes('R5') && p.tax && p.oc) d += (p.oc.builtUpArea - p.tax.assessedArea) * RATE[p.tax.usage] * 2
-  return Math.round(d / 100) * 100
-}
-
 export const PROPERTIES: Property[] = makeProperties()
 export const PROPERTY_BY_ID: Record<string, Property> = Object.fromEntries(PROPERTIES.map(p => [p.id, p]))
 
@@ -173,7 +155,7 @@ function makeCases(): Case[] {
       estDemand: est,
       openedOn: dateBack(between(5, 75)),
     }
-    if (status !== 'suspected') c.assignedTo = inspectorForWard(p.ward).id
+    if (status !== 'suspected') c.assignedTo = inspectorForWard(p.ward)!.id
     if (['verified', 'not_found', 'notice_sent', 'objection', 'recovered'].includes(status)) {
       c.visit = {
         date: dateBack(between(2, 30)),

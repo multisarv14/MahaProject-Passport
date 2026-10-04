@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { CheckCircle2, FileText, MapPin } from 'lucide-react'
 import { useStore } from '../store/store'
-import { WARD_NAMES, inspectorForWard } from '../data/mock'
+import { WARDS, WARD_NAMES, inspectorForWard } from '../data/mock'
 import { RULES, USAGE } from '../lib/labels'
 import { inr, num, dmy } from '../lib/format'
 import { api } from '../api/client'
@@ -28,6 +28,7 @@ export default function CaseDetail() {
   const [note, setNote] = useState('')
   const [revised, setRevised] = useState<number | ''>('')
   const [busy, setBusy] = useState(false)
+  const [newWard, setNewWard] = useState(1)
   const [actionError, setActionError] = useState('')
 
   if (res.error) return <Notice tone="bad">{res.error} <Link className="underline" to="/cases">{t('यादीकडे परत', 'Back to list')}</Link></Notice>
@@ -36,12 +37,12 @@ export default function CaseDetail() {
   const p = toProperty(res.data.property, res.data.records)
   const role = persona.role
   const can = (roles: string[]) => roles.includes(role)
-  const suggested = inspectorForWard(p.ward)
   const eligible = (inspectors.data ?? []).filter(i => !i.wards || i.wards.includes(p.ward))
+  const suggested = eligible.find(i => i.id === inspectorForWard(p.ward)?.id) ?? eligible[0]
 
-  const run = async (path: string, body: unknown = {}) => {
+  const run = async (path: string, body: unknown = {}, base = `/cases/${c.id}/`) => {
     setBusy(true); setActionError('')
-    try { await api(`/cases/${c.id}/${path}`, { method: 'POST', body }); res.reload() }
+    try { await api(base + path, { method: 'POST', body }); res.reload() }
     catch (e) { setActionError((e as Error).message) }
     finally { setBusy(false) }
   }
@@ -106,15 +107,27 @@ export default function CaseDetail() {
           <Card title={t('पुढील कृती', 'Next action')}>
             {actionError && <div className="mb-3"><Notice tone="bad">{actionError}</Notice></div>}
 
-            {c.status === 'suspected' && (can(ASSIGNERS) ? (
+            {c.status === 'suspected' && p.ward === 0 && (can(APPROVERS) ? (
+              <div className="flex flex-col gap-3">
+                <Notice tone="warn">{t('ही नवीन मालमत्ता आहे; विभागाच्या file मध्ये प्रभाग नव्हता. सोपवण्यापूर्वी प्रभाग नोंदवा.', 'New property; the department file had no ward. Set the ward before assigning.')}</Notice>
+                <Field label={t('प्रभाग', 'Ward')}>
+                  <select id="set-ward" className={inputCls} value={newWard} onChange={e => setNewWard(+e.target.value)}>
+                    {WARDS.map(w => <option key={w} value={w}>{w} · {WARD_NAMES[w]}</option>)}
+                  </select>
+                </Field>
+                <Button disabled={busy} onClick={() => run('ward', { ward: newWard }, `/properties/${encodeURIComponent(p.id)}/`)}>{t('प्रभाग नोंदवा', 'Set ward')}</Button>
+              </div>
+            ) : <p className="text-sm text-muted">{t('कर निर्धारण अधिकारी प्रभाग नोंदवतील.', 'The assessment officer will set the ward.')}</p>)}
+
+            {c.status === 'suspected' && p.ward !== 0 && (can(ASSIGNERS) ? (
               <div className="flex flex-col gap-3">
                 {inspectors.error && <LoadError message={inspectors.error} onRetry={inspectors.reload} />}
                 <Field label={t('पाहणीसाठी निरीक्षक', 'Assign inspector')}>
-                  <select id="assign-insp" className={inputCls} value={inspector || suggested.id} onChange={e => setInspector(e.target.value)}>
-                    {eligible.map(i => <option key={i.id} value={i.id}>{i.name} · {i.office}{i.id === suggested.id ? ` (${t('सुचवलेले', 'suggested')})` : ''}</option>)}
+                  <select id="assign-insp" className={inputCls} value={inspector || suggested?.id} onChange={e => setInspector(e.target.value)}>
+                    {eligible.map(i => <option key={i.id} value={i.id}>{i.name} · {i.office}{i.id === suggested?.id ? ` (${t('सुचवलेले', 'suggested')})` : ''}</option>)}
                   </select>
                 </Field>
-                <Button disabled={busy || !eligible.length} onClick={() => run('assign', { inspectorId: inspector || suggested.id })}>{t('पाहणीसाठी सोपवा', 'Assign for visit')}</Button>
+                <Button disabled={busy || !suggested} onClick={() => run('assign', { inspectorId: inspector || suggested!.id })}>{t('पाहणीसाठी सोपवा', 'Assign for visit')}</Button>
               </div>
             ) : <p className="text-sm text-muted">{t('प्रभाग अधिकारी निरीक्षकाकडे सोपवतील.', 'Ward officer will assign an inspector.')}</p>)}
 
@@ -171,7 +184,7 @@ export default function CaseDetail() {
           </Card>
 
           <Card title={t('मागणीचा अंदाज', 'Demand estimate')}>
-            <div className="tnum text-2xl font-bold">{c.estDemand ? inr(c.estDemand) : t('नोंद दुरुस्ती', 'Record correction')}</div>
+            <div className="tnum text-2xl font-bold">{c.estDemand ? inr(c.estDemand) : t('पाहणीनंतर ठरेल', 'Set after site visit')}</div>
             <p className="mt-1 text-xs text-muted">{t('क्षेत्रफळ × वापरानुसार दर × मागील कालावधी (Demo दर).', 'Area × usage rate × back period (demo rates).')}</p>
           </Card>
 

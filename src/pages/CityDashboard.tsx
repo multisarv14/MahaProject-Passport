@@ -71,7 +71,7 @@ export default function CityDashboard() {
               <td className="tnum">{ws.confirmed}</td>
               <td className="tnum">{inrShort(Number(ws.demand), lang)}</td>
               <td className="tnum">{inrShort(Number(ws.recovered), lang)}</td>
-              <td>{inspectorForWard(ws.ward).name}</td>
+              <td>{inspectorForWard(ws.ward)?.name ?? '—'}</td>
             </tr>
           ))}
         </Table>

@@ -4,3 +4,5 @@ dist
 *.log
 server/node_modules
 server/.env
+*.png
+!public/**/*.png

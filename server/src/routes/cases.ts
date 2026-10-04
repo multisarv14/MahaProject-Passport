@@ -93,10 +93,23 @@ export default async function caseRoutes(app: FastifyInstance) {
     return { ...p, records: await loadRecords(sql, id) }
   })
 
+  // New passports from files without a ward column start at ward 0; an officer sets the ward before assignment.
+  app.post('/properties/:id/ward', { preHandler: requireRole('assessment_officer', 'commissioner') }, async (req, reply) => {
+    const { id } = req.params as { id: string }
+    const { ward } = z.object({ ward: z.number().int().min(1).max(99) }).parse(req.body)
+    return sql.begin(async tx => {
+      const [p] = await tx`UPDATE properties SET ward = ${ward} WHERE id = ${id} AND ward = 0 RETURNING id`
+      if (!p) return reply.code(409).send({ error: 'WARD_ALREADY_SET', message: 'The ward is already set for this property.' })
+      await audit(tx as unknown as Sql, req.user, `प्रभाग नोंदवला: ${ward}`, id)
+      return { id, ward }
+    })
+  })
+
   app.get('/cases', { preHandler: requireRole(...CASE_READERS) }, async req => {
     const q = z.object({
       status: z.string().optional(), rule: z.string().optional(), ward: z.coerce.number().optional(),
-      mine: z.coerce.boolean().optional(), limit: z.coerce.number().max(200).default(50), offset: z.coerce.number().default(0),
+      mine: z.coerce.boolean().optional(), sort: z.enum(['demand', 'newest']).default('demand'),
+      limit: z.coerce.number().max(200).default(50), offset: z.coerce.number().default(0),
     }).parse(req.query)
     const mine = q.mine || req.user.role === 'inspector' ? req.user.id : null
     return sql`SELECT c.id, c.property_id, c.rules, c.confidence, c.status, c.est_demand, c.approved_demand, c.assigned_to, c.opened_on,
@@ -107,7 +120,7 @@ export default async function caseRoutes(app: FastifyInstance) {
         AND (${q.rule ?? null}::text IS NULL OR ${q.rule ?? null} = ANY(c.rules))
         AND (${q.ward ?? null}::int IS NULL OR p.ward = ${q.ward ?? null})
         AND (${mine}::text IS NULL OR c.assigned_to = ${mine})
-      ORDER BY c.est_demand DESC, c.id LIMIT ${q.limit} OFFSET ${q.offset}`
+      ORDER BY ${q.sort === 'newest' ? sql`c.opened_on DESC, c.id DESC` : sql`c.est_demand DESC, c.id`} LIMIT ${q.limit} OFFSET ${q.offset}`
   })
 
   app.get('/cases/:id', { preHandler: requireRole(...CASE_READERS, 'citizen') }, async (req, reply) => {
@@ -129,6 +142,7 @@ export default async function caseRoutes(app: FastifyInstance) {
       return await act(req.user, id, 'assign', async (tx, c) => {
         const [i] = await tx`SELECT id, wards FROM users WHERE id = ${inspectorId} AND role = 'inspector' AND active`
         if (!i) throw new HttpError(400, 'BAD_INSPECTOR', 'Choose an active inspector.')
+        if (c.ward === 0) throw new HttpError(409, 'WARD_UNKNOWN', 'Set the ward for this property before assigning.')
         if (i.wards && !i.wards.includes(c.ward)) throw new HttpError(400, 'BAD_INSPECTOR', 'This inspector does not cover the ward.')
         await tx`UPDATE cases SET assigned_to = ${inspectorId} WHERE id = ${id}`
       }, 'प्रकरण निरीक्षकाकडे सोपवले', { inspectorId })

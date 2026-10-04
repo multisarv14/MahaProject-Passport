@@ -17,13 +17,14 @@ export default function Cases() {
   const [status, setStatus] = useState<CaseStatus | ''>((params.get('status') as CaseStatus) ?? '')
   const [rule, setRule] = useState<RuleId | ''>('')
   const [ward, setWard] = useState(0)
+  const [sort, setSort] = useState<'demand' | 'newest'>('demand')
   const [limit, setLimit] = useState(PAGE)
-  useEffect(() => setLimit(PAGE), [status, rule, ward])
+  useEffect(() => setLimit(PAGE), [status, rule, ward, sort])
 
-  const q = new URLSearchParams({ limit: String(limit) })
+  const q = new URLSearchParams({ limit: String(limit), sort })
   if (status) q.set('status', status)
   if (rule) q.set('rule', rule)
-  if (ward) q.set('ward', String(ward))
+  if (ward !== 0) q.set('ward', String(ward === -1 ? 0 : ward))
   const { data, error, loading, reload } = useApi<ApiCaseRow[]>(`/cases?${q}`)
   const stats = useApi<ApiStats>('/stats')
   const count = (s: CaseStatus) => stats.data?.byStatus.find(x => x.status === s)?.n ?? 0
@@ -49,8 +50,12 @@ export default function Cases() {
           <select id="case-ward" className={inputCls} value={ward} onChange={e => setWard(+e.target.value)}>
             <option value={0}>{persona?.wards ? t('माझे सर्व प्रभाग', 'All my wards') : t('सर्व प्रभाग', 'All wards')}</option>
             {wards.map(w => <option key={w} value={w}>{t('प्रभाग', 'Ward')} {w} · {WARD_NAMES[w]}</option>)}
+            {!persona?.wards && <option value={-1}>{WARD_NAMES[0]}</option>}
           </select>
-          <span className="self-center text-sm text-muted">{t('संभाव्य मागणीनुसार क्रम', 'Sorted by potential demand')}</span>
+          <select id="case-sort" className={inputCls} value={sort} onChange={e => setSort(e.target.value as 'demand' | 'newest')}>
+            <option value="demand">{t('क्रम: संभाव्य मागणी', 'Sort: potential demand')}</option>
+            <option value="newest">{t('क्रम: नवीन आधी', 'Sort: newest first')}</option>
+          </select>
         </div>
         {error && <LoadError message={error} onRetry={reload} />}
         {data && (
@@ -63,7 +68,7 @@ export default function Cases() {
                   <td className="tnum">{c.ward}</td>
                   <td><div className="flex flex-wrap gap-1">{c.rules.map(r => <Badge key={r} tone="warn">{r} · {RULES[r].short[lang]}</Badge>)}</div></td>
                   <td className="tnum">{c.confidence}%</td>
-                  <td className="tnum font-semibold">{Number(c.est_demand) ? inr(Number(c.est_demand)) : <span className="text-muted">{t('नोंद दुरुस्ती', 'Record fix')}</span>}</td>
+                  <td className="tnum font-semibold">{Number(c.est_demand) ? inr(Number(c.est_demand)) : <span className="text-muted">{t('पाहणीनंतर ठरेल', 'Set after visit')}</span>}</td>
                   <td>{c.assigned_name ?? '—'}</td>
                   <td><StatusBadge status={c.status} /></td>
                 </tr>
