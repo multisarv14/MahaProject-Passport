@@ -12,7 +12,7 @@ import type { ApiAudit, ApiStats } from '../api/types'
 export default function CityDashboard() {
   const { persona, lang, t } = useStore()
   const stats = useApi<ApiStats>('/stats')
-  const canAudit = ['auditor', 'platform_admin', 'commissioner'].includes(persona?.role ?? '')
+  const canAudit = ['auditor', 'commissioner'].includes(persona?.role ?? '')
   const audit = useApi<ApiAudit[]>(canAudit ? '/audit?limit=8' : null)
   if (stats.error) return <LoadError message={stats.error} onRetry={stats.reload} />
   if (!stats.data) return <Loading />

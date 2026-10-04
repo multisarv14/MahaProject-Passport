@@ -12,8 +12,8 @@ import type { Property, Usage } from '../../../src/data/types.ts'
 
 const SOURCES = ['tax', 'oc', 'elec', 'igr', 'water'] as const
 const MAX_ROWS = 200_000
-const UPLOADERS = ['platform_admin', 'assessment_officer', 'commissioner', 'dept_data_officer'] as const
-const MATCHERS = ['platform_admin', 'assessment_officer', 'commissioner'] as const
+const UPLOADERS = ['assessment_officer', 'commissioner', 'dept_data_officer'] as const
+const MATCHERS = ['assessment_officer', 'commissioner'] as const
 const CITY_CODE = 'NMN'
 
 class HttpError extends Error { constructor(public status: number, public code: string, message: string) { super(message) } }

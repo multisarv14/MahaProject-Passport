@@ -292,7 +292,6 @@ export default async function caseRoutes(app: FastifyInstance) {
       inspector: ['visits'],
       hearing_officer: ['hearing'],
       recovery_clerk: ['payment'],
-      platform_admin: ['match_pending', 'review'],
     }
     return (keys[u.role] ?? []).map(k => ({ key: k, count: all[k] ?? 0 }))
   })
@@ -304,22 +303,19 @@ export default async function caseRoutes(app: FastifyInstance) {
     return { propertyId: p.id, caseId: c?.id ?? null }
   })
 
-  app.get('/audit', { preHandler: requireRole('auditor', 'platform_admin', 'commissioner') }, async req => {
+  app.get('/audit', { preHandler: requireRole('auditor', 'commissioner') }, async req => {
     const { limit } = z.object({ limit: z.coerce.number().max(500).default(100) }).parse(req.query)
     return sql`SELECT a.at, a.action, a.entity, a.role, u.name AS who FROM audit_log a LEFT JOIN users u ON u.id = a.user_id ORDER BY a.at DESC, a.id DESC LIMIT ${limit}`
   })
 
-  app.get('/objections', { preHandler: requireRole('hearing_officer', 'assessment_officer', 'commissioner', 'platform_admin', 'auditor') }, async req =>
+  app.get('/objections', { preHandler: requireRole('hearing_officer', 'assessment_officer', 'commissioner', 'auditor') }, async req =>
     sql`SELECT o.*, c.status, c.approved_demand, p.owner_name, p.address
       FROM objections o JOIN cases c ON c.id = o.case_id JOIN properties p ON p.id = c.property_id
       WHERE ${scope(sql, req.user)} ORDER BY (o.decision IS NULL) DESC, o.filed_on DESC`)
 
-  app.get('/messages', { preHandler: requireRole('platform_admin', 'assessment_officer', 'commissioner') }, async () =>
+  app.get('/messages', { preHandler: requireRole('assessment_officer', 'commissioner') }, async () =>
     sql`SELECT id, case_id, channel, template, recipient, sent_at FROM messages ORDER BY sent_at DESC LIMIT 200`)
 
-  app.get('/users', { preHandler: requireRole('platform_admin') }, async () =>
-    sql`SELECT id, name, role, office_name AS office, wards, active FROM users ORDER BY created_at, id`)
-
-  app.get('/inspectors', { preHandler: requireRole('ward_officer', 'assessment_officer', 'commissioner', 'platform_admin') }, async () =>
+  app.get('/inspectors', { preHandler: requireRole('ward_officer', 'assessment_officer', 'commissioner') }, async () =>
     sql`SELECT id, name, office_name AS office, wards FROM users WHERE role = 'inspector' AND active ORDER BY id`)
 }

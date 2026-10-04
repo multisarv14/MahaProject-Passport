@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { checkTransition, CASE_READERS } from './workflow.ts'
+import { checkTransition, CASE_READERS, TRANSITIONS } from './workflow.ts'
 
 test('ward officer can assign a suspected case', () => {
   assert.deepEqual(checkTransition('assign', 'ward_officer', 'suspected'), { ok: true, to: 'assigned' })
@@ -34,4 +34,9 @@ test('only a citizen files an objection', () => {
 
 test('representative cannot read individual case records', () => {
   assert.equal(CASE_READERS.includes('representative'), false)
+})
+
+test('platform admin cannot read case records or act on any case', () => {
+  assert.equal(CASE_READERS.includes('platform_admin'), false)
+  for (const t of Object.values(TRANSITIONS)) assert.equal(t.roles.includes('platform_admin'), false)
 })

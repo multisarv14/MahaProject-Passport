@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { StoreProvider, useStore } from './store/store'
 import { Layout } from './components/Layout'
 import Login from './pages/Login'
@@ -36,15 +36,19 @@ function Home() {
     case 'recovery_clerk': return <Navigate to="/recovery" replace />
     case 'business_officer': return <Navigate to="/business" replace />
     case 'citizen': return <Navigate to="/citizen" replace />
+    case 'platform_admin': return <Navigate to="/admin?tab=users" replace />
     default: return <CityDashboard />
   }
 }
 
 function RequireLogin({ children }: { children: ReactNode }) {
   const { persona, ready } = useStore()
+  const loc = useLocation()
   if (!ready) return null
   if (!persona) return <Navigate to="/login" replace />
   if (persona.role === 'citizen') return <Navigate to="/citizen" replace />
+  // The platform administrator only ever sees the administration pages.
+  if (persona.role === 'platform_admin' && !loc.pathname.startsWith('/admin')) return <Navigate to="/admin?tab=users" replace />
   return <>{children}</>
 }
 

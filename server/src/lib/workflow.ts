@@ -36,11 +36,18 @@ export function checkTransition(action: Action, role: Role, current: Status): Ch
   return { ok: true, to: t.to }
 }
 
-/** Roles that may read individual property and case records (with personal data). */
+/**
+ * Roles that may read individual property and case records (with personal data).
+ * platform_admin is deliberately absent: the vendor's administrator manages users and
+ * the system, and never sees government or citizen data.
+ */
 export const CASE_READERS: Role[] = [
-  'platform_admin', 'commissioner', 'assessment_officer', 'ward_officer', 'inspector',
+  'commissioner', 'assessment_officer', 'ward_officer', 'inspector',
   'hearing_officer', 'recovery_clerk', 'auditor',
 ]
+
+/** Roles that administer the platform only (users, offices, system health). */
+export const SYSTEM_ADMINS: Role[] = ['platform_admin']
 
 /** Roles that only see aggregate figures. */
 export const AGGREGATE_ONLY: Role[] = ['state_lead', 'collector', 'representative']

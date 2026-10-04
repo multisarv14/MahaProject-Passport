@@ -58,5 +58,6 @@ Try it with `docs/sample-data/msedcl_new_connections_oct2026.csv`: 14 English ro
 
 - `DEMO_MODE=true` enables one-click role login and returns the OTP in the API response. It must be `false` in any real deployment.
 - `audit_log` is append-only; a trigger rejects updates and deletes.
-- Platform administrators cannot approve assessments or notices; only municipal officers can.
+- The platform administrator (vendor) manages users, offices and system health only. The API refuses it every property, case, citizen and department-data endpoint, and it cannot act on any case.
+- User role, wards and active status are re-read on every request, so disabling an account ends its sessions immediately.
 - A department data officer can upload only their own department's files and cannot run matching.
