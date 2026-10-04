@@ -12,20 +12,29 @@ export const tokenStore = {
 let onUnauthorized: () => void = () => {}
 export const setUnauthorizedHandler = (f: () => void) => { onUnauthorized = f }
 
+const UNREACHABLE = 'सर्व्हरशी संपर्क झाला नाही. थोड्या वेळाने पुन्हा प्रयत्न करा. / Could not reach the server. Please try again shortly.'
+
 export async function api<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
   const token = tokenStore.get()
-  const res = await fetch('/api' + path, {
-    method: init?.method ?? 'GET',
-    headers: {
-      ...(init?.body !== undefined ? { 'content-type': 'application/json' } : {}),
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
-    body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
-  })
+  let res: Response
+  try {
+    res = await fetch('/api' + path, {
+      method: init?.method ?? 'GET',
+      headers: {
+        ...(init?.body !== undefined ? { 'content-type': 'application/json' } : {}),
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+    })
+  } catch {
+    throw new ApiError(0, 'UNREACHABLE', UNREACHABLE)
+  }
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     if (res.status === 401 && token) onUnauthorized()
-    throw new ApiError(res.status, data.error ?? 'ERROR', data.message ?? 'Request failed')
+    // A gateway error without a JSON body means the API itself is down.
+    const message = data.message ?? (res.status >= 502 ? UNREACHABLE : `Request failed (${res.status})`)
+    throw new ApiError(res.status, data.error ?? 'ERROR', message)
   }
   return data as T
 }
@@ -33,8 +42,13 @@ export async function api<T>(path: string, init?: { method?: string; body?: unkn
 /** Multipart upload (file + fields). JSON helpers above cannot send files. */
 export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   const token = tokenStore.get()
-  const res = await fetch('/api' + path, { method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {}, body: form })
+  let res: Response
+  try {
+    res = await fetch('/api' + path, { method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {}, body: form })
+  } catch {
+    throw new ApiError(0, 'UNREACHABLE', UNREACHABLE)
+  }
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new ApiError(res.status, data.error ?? 'ERROR', data.message ?? 'Upload failed')
+  if (!res.ok) throw new ApiError(res.status, data.error ?? 'ERROR', data.message ?? (res.status >= 502 ? UNREACHABLE : `Upload failed (${res.status})`))
   return data as T
 }
