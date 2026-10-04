@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Download } from 'lucide-react'
 import { useStore } from '../store/store'
-import { WARDS, WARD_NAMES } from '../data/mock'
-import { caseStats, wardOf } from '../lib/stats'
-import { inr, num } from '../lib/format'
-import { Button, Card, Notice, PageHeader, Table, cx } from '../components/ui'
+import { WARD_NAMES } from '../data/mock'
+import { inr, num, pct } from '../lib/format'
+import { useApi } from '../api/useApi'
+import type { ApiStats } from '../api/types'
+import { Button, Card, LoadError, Loading, Notice, PageHeader, Table, cx } from '../components/ui'
 
 const REPORTS = [
   { id: 'ward', mr: 'प्रभागनिहाय सारांश', en: 'Ward-wise summary' },
@@ -17,9 +18,12 @@ const REPORTS = [
 ]
 
 export default function Reports() {
-  const { t, lang, cases } = useStore()
+  const { t, lang } = useStore()
   const [sel, setSel] = useState('ward')
   const [msg, setMsg] = useState('')
+  const { data, error, reload } = useApi<ApiStats>('/stats')
+  if (error) return <LoadError message={error} onRetry={reload} />
+  if (!data) return <Loading />
   return (
     <>
       <PageHeader title={t('अहवाल', 'Reports')} sub={t('PDF / Excel / CSV मध्ये export (Demo मध्ये export फक्त दाखवण्यासाठी).', 'Export to PDF / Excel / CSV (export is illustrative in the demo).')} />
@@ -35,11 +39,10 @@ export default function Reports() {
           <div className="flex gap-2">{['PDF', 'Excel', 'CSV'].map(f => <Button key={f} size="sm" variant="secondary" onClick={() => setMsg(t(`${f} file तयार झाली (Demo).`, `${f} file prepared (demo).`))}><Download size={14} />{f}</Button>)}</div>
         }>
           {msg && <div className="mb-3"><Notice tone="ok">{msg}</Notice></div>}
-          <Table head={[t('प्रभाग', 'Ward'), t('प्रकरणे', 'Cases'), t('पाहणी', 'Visited'), t('खात्री', 'Confirmed'), t('अचूकता', 'Accuracy'), t('मागणी', 'Demand'), t('वसुली', 'Collected')]}>
-            {WARDS.map(w => {
-              const s = caseStats(cases.filter(c => wardOf(c) === w))
-              return <tr key={w}><td>{w} · {WARD_NAMES[w]}</td><td className="tnum">{num(s.total)}</td><td className="tnum">{s.visited}</td><td className="tnum">{s.confirmed}</td><td className="tnum">{s.accuracy}%</td><td className="tnum">{inr(s.demand)}</td><td className="tnum">{inr(s.recovered)}</td></tr>
-            })}
+          <Table head={[t('प्रभाग', 'Ward'), t('प्रकरणे', 'Cases'), t('पाहणी बाकी', 'Pending visit'), t('खात्री', 'Confirmed'), t('मागणी', 'Demand'), t('वसुली', 'Collected'), '%']}>
+            {data.byWard.map(w => (
+              <tr key={w.ward}><td>{w.ward} · {WARD_NAMES[w.ward]}</td><td className="tnum">{num(w.cases)}</td><td className="tnum">{w.pending}</td><td className="tnum">{w.confirmed}</td><td className="tnum">{inr(Number(w.demand))}</td><td className="tnum">{inr(Number(w.recovered))}</td><td className="tnum">{pct(Number(w.recovered), Number(w.demand))}%</td></tr>
+            ))}
           </Table>
           {sel !== 'ward' && <p className="mt-3 text-xs text-muted">{t('Demo मध्ये सर्व अहवालांसाठी प्रभागनिहाय नमुना दाखवला आहे.', 'The demo shows the ward-wise sample for every report.')}</p>}
         </Card>

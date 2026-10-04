@@ -166,3 +166,18 @@ export function BarRow({ label, value, max, display, tone = 'info' }: { label: R
 export function Notice({ tone = 'info', children }: { tone?: Tone; children: ReactNode }) {
   return <div className={cx('rounded-md px-3 py-2 text-sm', toneCls[tone])}>{children}</div>
 }
+
+export function Loading() {
+  const { t } = useStore()
+  return <p className="py-10 text-center text-sm text-muted">{t('माहिती आणत आहे…', 'Loading…')}</p>
+}
+
+export function LoadError({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const { t } = useStore()
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-md bg-bad-soft px-3 py-2 text-sm text-bad">
+      <span>{t('माहिती मिळाली नाही:', 'Could not load:')} {message}</span>
+      {onRetry && <button className="underline" onClick={onRetry}>{t('पुन्हा प्रयत्न करा', 'Try again')}</button>}
+    </div>
+  )
+}

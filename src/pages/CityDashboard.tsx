@@ -1,18 +1,23 @@
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { CITY, PERSONAS, PROPERTIES, WARDS, WARD_NAMES, inspectorForWard, TODAY } from '../data/mock'
+import { CITY, WARD_NAMES, inspectorForWard } from '../data/mock'
 import { RULES } from '../lib/labels'
-import { caseStats, wardOf } from '../lib/stats'
 import { inrShort, num, dmy } from '../lib/format'
-import { BarRow, Button, Card, Kpi, PageHeader, Table } from '../components/ui'
+import { BarRow, Button, Card, Kpi, LoadError, Loading, PageHeader, Table } from '../components/ui'
 import type { RuleId } from '../data/types'
+import { useApi } from '../api/useApi'
+import { summarize } from '../api/adapters'
+import type { ApiAudit, ApiStats } from '../api/types'
 
 export default function CityDashboard() {
-  const { cases, persona, lang, t, audit } = useStore()
-  const wardScope = persona?.role === 'ward_officer' ? [1, 2, 3, 4] : WARDS
-  const scoped = cases.filter(c => wardScope.includes(wardOf(c)))
-  const s = caseStats(scoped)
-  const props = PROPERTIES.filter(p => wardScope.includes(p.ward)).length
+  const { persona, lang, t } = useStore()
+  const stats = useApi<ApiStats>('/stats')
+  const canAudit = ['auditor', 'platform_admin', 'commissioner'].includes(persona?.role ?? '')
+  const audit = useApi<ApiAudit[]>(canAudit ? '/audit?limit=8' : null)
+  if (stats.error) return <LoadError message={stats.error} onRetry={stats.reload} />
+  if (!stats.data) return <Loading />
+  const s = summarize(stats.data)
+  const props = s.properties
   const funnel = [
     { mr: 'संशयित (पाहणी बाकी)', en: 'Suspected (not yet visited)', v: s.suspected + s.assigned, tone: 'warn' as const },
     { mr: 'पाहणी झाली', en: 'Visited', v: s.visited, tone: 'info' as const },
@@ -20,15 +25,14 @@ export default function CityDashboard() {
     { mr: 'नोटीस पाठवली', en: 'Notice sent', v: s.noticed, tone: 'file' as const },
     { mr: 'वसूल', en: 'Recovered', v: s.recoveredCount, tone: 'ok' as const },
   ]
-  const maxRule = Math.max(...Object.values(s.ruleCount))
-  const nameOf = (id: string) => PERSONAS.find(p => p.id === id)?.name ?? id
+  const maxRule = Math.max(1, ...Object.values(s.ruleCount))
 
   return (
     <>
       <PageHeader
-        eyebrow={persona?.role === 'ward_officer' ? t('प्रभाग १–४', 'Wards 1–4') : t('शहर', 'City')}
+        eyebrow={persona?.wards ? t(`प्रभाग ${persona.wards.join(', ')}`, `Wards ${persona.wards.join(', ')}`) : t('शहर', 'City')}
         title={t(CITY.mr, CITY.en)}
-        sub={t(`मालमत्ता Passport · स्थिती ${dmy(TODAY)} पर्यंत`, `Property Passport · as of ${dmy(TODAY)}`)}
+        sub={t('मालमत्ता Passport · थेट database मधून', 'Property Passport · live from the database')}
         actions={<Link to="/cases"><Button>{t('संशयित प्रकरणे पहा', 'Open cases')}</Button></Link>}
       />
 
@@ -59,35 +63,32 @@ export default function CityDashboard() {
 
       <Card className="mt-4" title={t('प्रभागनिहाय स्थिती', 'Ward-wise status')}>
         <Table head={[t('प्रभाग', 'Ward'), t('प्रकरणे', 'Cases'), t('पाहणी बाकी', 'Pending visit'), t('खात्री', 'Confirmed'), t('मंजूर मागणी', 'Demand'), t('वसुली', 'Recovered'), t('निरीक्षक', 'Inspector')]}>
-          {wardScope.map(w => {
-            const ws = caseStats(scoped.filter(c => wardOf(c) === w))
-            return (
-              <tr key={w}>
-                <td><b>{w}</b> · {WARD_NAMES[w]}</td>
-                <td className="tnum">{ws.total}</td>
-                <td className="tnum">{ws.suspected + ws.assigned}</td>
-                <td className="tnum">{ws.confirmed}</td>
-                <td className="tnum">{inrShort(ws.demand, lang)}</td>
-                <td className="tnum">{inrShort(ws.recovered, lang)}</td>
-                <td>{inspectorForWard(w).name}</td>
-              </tr>
-            )
-          })}
+          {stats.data.byWard.map(ws => (
+            <tr key={ws.ward}>
+              <td><b>{ws.ward}</b> · {WARD_NAMES[ws.ward]}</td>
+              <td className="tnum">{ws.cases}</td>
+              <td className="tnum">{ws.pending}</td>
+              <td className="tnum">{ws.confirmed}</td>
+              <td className="tnum">{inrShort(Number(ws.demand), lang)}</td>
+              <td className="tnum">{inrShort(Number(ws.recovered), lang)}</td>
+              <td>{inspectorForWard(ws.ward).name}</td>
+            </tr>
+          ))}
         </Table>
       </Card>
 
-      <Card className="mt-4" title={t('अलीकडील कामकाज', 'Recent activity')} action={<Link to="/audit" className="text-sm text-info underline">{t('सर्व पहा', 'View all')}</Link>}>
+      {canAudit && audit.data && <Card className="mt-4" title={t('अलीकडील कामकाज', 'Recent activity')} action={<Link to="/audit" className="text-sm text-info underline">{t('सर्व पहा', 'View all')}</Link>}>
         <ul className="flex flex-col divide-y divide-line text-sm">
-          {audit.slice(0, 8).map((a, i) => (
+          {audit.data.map((a, i) => (
             <li key={i} className="flex flex-wrap items-center gap-x-3 py-2">
               <span className="tnum w-36 text-muted">{dmy(a.at)}</span>
-              <span className="font-semibold">{nameOf(a.who)}</span>
+              <span className="font-semibold">{a.who ?? t('प्रणाली', 'System')}</span>
               <span>{a.action}</span>
               <Link to={a.entity.startsWith('C-') ? `/cases/${a.entity}` : '#'} className="font-mono text-xs text-info">{a.entity}</Link>
             </li>
           ))}
         </ul>
-      </Card>
+      </Card>}
     </>
   )
 }

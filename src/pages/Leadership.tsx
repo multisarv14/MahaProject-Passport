@@ -1,24 +1,32 @@
 import { useStore } from '../store/store'
-import { CITY, DISTRICT, DISTRICT_CITIES, PROPERTIES, STATE_DISTRICTS, WARDS, WARD_NAMES } from '../data/mock'
-import { caseStats, wardOf } from '../lib/stats'
+import { CITY, DISTRICT, DISTRICT_CITIES, STATE_DISTRICTS, WARD_NAMES } from '../data/mock'
 import { inrShort, num, pct } from '../lib/format'
-import { Badge, BarRow, Card, Kpi, Notice, PageHeader, Table } from '../components/ui'
+import { useApi } from '../api/useApi'
+import { summarize } from '../api/adapters'
+import type { ApiStats } from '../api/types'
+import { Badge, BarRow, Card, Kpi, LoadError, Loading, Notice, PageHeader, Table } from '../components/ui'
 
-function useCities() {
-  const { cases } = useStore()
-  const s = caseStats(cases)
-  return [
-    { mr: CITY.mr, en: CITY.en, properties: PROPERTIES.length, cases: s.total, verified: s.confirmed, demand: s.demand, recovered: s.recovered, live: true },
-    ...DISTRICT_CITIES,
-  ]
+type City = { mr: string; en: string; properties: number; cases: number; verified: number; demand: number; recovered: number; live: boolean }
+
+/** Pilot city figures come live from the API; the other bodies are static demo rows. */
+function useCities(): { cities: City[] | null; error: string | null; reload: () => void; stats: ApiStats | null } {
+  const { data, error, reload } = useApi<ApiStats>('/stats')
+  if (!data) return { cities: null, error, reload, stats: null }
+  const s = summarize(data)
+  return {
+    cities: [{ mr: CITY.mr, en: CITY.en, properties: s.properties, cases: s.total, verified: s.confirmed, demand: s.demand, recovered: s.recovered, live: true }, ...DISTRICT_CITIES],
+    error, reload, stats: data,
+  }
 }
 
 export function DistrictDashboard() {
   const { t, lang } = useStore()
-  const cities = useCities()
+  const { cities, error, reload } = useCities()
+  if (error) return <LoadError message={error} onRetry={reload} />
+  if (!cities) return <Loading />
   const tot = cities.reduce((a, c) => ({ cases: a.cases + c.cases, verified: a.verified + c.verified, demand: a.demand + c.demand, recovered: a.recovered + c.recovered }), { cases: 0, verified: 0, demand: 0, recovered: 0 })
   const maxD = Math.max(...cities.map(c => c.demand))
-  const stage = (c: typeof cities[number]) => c.live ? <Badge tone="ok">{t('Pilot चालू', 'Pilot live')}</Badge> : c.cases ? <Badge tone="info">{t('सुरू', 'Live')}</Badge> : <Badge tone="neutral">{t('नियोजित', 'Planned')}</Badge>
+  const stage = (c: City) => c.live ? <Badge tone="ok">{t('Pilot चालू', 'Pilot live')}</Badge> : c.cases ? <Badge tone="info">{t('सुरू', 'Live')}</Badge> : <Badge tone="neutral">{t('नियोजित', 'Planned')}</Badge>
 
   return (
     <>
@@ -50,7 +58,9 @@ export function DistrictDashboard() {
 
 export function StateDashboard() {
   const { t, lang } = useStore()
-  const cities = useCities()
+  const { cities, error, reload } = useCities()
+  if (error) return <LoadError message={error} onRetry={reload} />
+  if (!cities) return <Loading />
   const demand = cities.reduce((a, c) => a + c.demand, 0)
   const recovered = cities.reduce((a, c) => a + c.recovered, 0)
   return (
@@ -83,10 +93,13 @@ export function StateDashboard() {
 }
 
 export function AreaSummary() {
-  const { t, lang, cases } = useStore()
-  const s = caseStats(cases)
-  const rows = WARDS.map(w => ({ w, ...caseStats(cases.filter(c => wardOf(c) === w)) }))
-  const max = Math.max(...rows.map(r => r.demand))
+  const { t, lang } = useStore()
+  const { stats, error, reload } = useCities()
+  if (error) return <LoadError message={error} onRetry={reload} />
+  if (!stats) return <Loading />
+  const s = summarize(stats)
+  const rows = stats.byWard.map(r => ({ w: r.ward, demand: Number(r.demand) }))
+  const max = Math.max(1, ...rows.map(r => r.demand))
   return (
     <>
       <PageHeader eyebrow={t('लोकप्रतिनिधी', 'Elected representative')} title={t('नमुना मतदारसंघ: सारांश', 'Namuna Constituency: Summary')} sub={t('फक्त एकत्रित आकडे. नागरिकांची वैयक्तिक माहिती या दृश्यात दिसत नाही.', 'Aggregate figures only. No individual citizen data is shown here.')} />
@@ -94,7 +107,7 @@ export function AreaSummary() {
         <Kpi label={t('शहरासाठी वाढीव मागणी', 'Additional demand for the city')} value={inrShort(s.demand, lang)} tone="file" />
         <Kpi label={t('आतापर्यंत वसूल', 'Collected so far')} value={inrShort(s.recovered, lang)} tone="ok" />
         <Kpi label={t('पाहणी पूर्ण', 'Site visits done')} value={num(s.visited)} tone="info" />
-        <Kpi label={t('हरकतींचा निपटारा', 'Objections resolved')} value={cases.filter(c => c.objection?.decision).length} />
+        <Kpi label={t('नोटिसा', 'Notices issued')} value={num(s.noticed)} />
       </div>
       <Card className="mt-4" title={t('प्रभागनिहाय वाढीव मागणी', 'Additional demand by ward')}>
         <div className="flex flex-col gap-3">{rows.map(r => <BarRow key={r.w} label={`${r.w} · ${WARD_NAMES[r.w]}`} value={r.demand} max={max} display={inrShort(r.demand, lang)} tone="file" />)}</div>

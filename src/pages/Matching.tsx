@@ -4,7 +4,9 @@ import { Play } from 'lucide-react'
 import { useStore } from '../store/store'
 import { PERSONAS } from '../data/mock'
 import { RULES } from '../lib/labels'
-import { caseStats } from '../lib/stats'
+import { useApi } from '../api/useApi'
+import { summarize } from '../api/adapters'
+import type { ApiStats } from '../api/types'
 import { dmy, num } from '../lib/format'
 import { Badge, Button, Card, Notice, PageHeader, Table } from '../components/ui'
 import type { RuleId } from '../data/types'
@@ -15,8 +17,9 @@ const RULE_SOURCES: Record<RuleId, string> = {
 
 export default function Matching() {
   const st = useStore()
-  const { t, lang, cases, runs } = st
-  const s = caseStats(cases)
+  const { t, lang, runs } = st
+  const stats = useApi<ApiStats>('/stats')
+  const s = stats.data ? summarize(stats.data) : { total: 0, ruleCount: {} as Record<string, number> }
   const [running, setRunning] = useState(0)
   const [steps, setSteps] = useState<string[]>([])
 
@@ -31,7 +34,7 @@ export default function Matching() {
     setSteps([]); setRunning(1)
     all.forEach((x, i) => setTimeout(() => {
       setSteps(p => [...p, x])
-      if (i === all.length - 1) { setRunning(0); st.addRun(cases.length) }
+      if (i === all.length - 1) { setRunning(0); st.addRun(s.total) }
     }, 600 * (i + 1)))
   }
 

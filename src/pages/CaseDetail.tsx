@@ -2,31 +2,49 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { CheckCircle2, FileText, MapPin } from 'lucide-react'
 import { useStore } from '../store/store'
-import { PERSONAS, PROPERTY_BY_ID, WARD_NAMES, inspectorForWard } from '../data/mock'
+import { WARD_NAMES, inspectorForWard } from '../data/mock'
 import { RULES, USAGE } from '../lib/labels'
 import { inr, num, dmy } from '../lib/format'
-import { Button, Card, Field, KV, Modal, Notice, PageHeader, StatusBadge, inputCls } from '../components/ui'
+import { api } from '../api/client'
+import { useApi } from '../api/useApi'
+import { toCase, toProperty } from '../api/adapters'
+import type { ApiCase } from '../api/types'
+import { Button, Card, Field, KV, LoadError, Loading, Modal, Notice, PageHeader, StatusBadge, inputCls } from '../components/ui'
 import { MiniMap, SourceComparison } from '../components/Evidence'
 import { NoticeLetter } from '../components/NoticeLetter'
 import { PhotoThumbs } from '../components/PhotoThumbs'
 
+const ASSIGNERS = ['ward_officer', 'assessment_officer', 'commissioner']
+const APPROVERS = ['assessment_officer', 'commissioner']
+
 export default function CaseDetail() {
   const { id = '' } = useParams()
-  const st = useStore()
-  const { t, lang, cases, persona, audit } = st
-  const c = cases.find(x => x.id === id)
+  const { t, lang, persona } = useStore()
+  const res = useApi<ApiCase>(`/cases/${encodeURIComponent(id)}`)
+  const inspectors = useApi<{ id: string; name: string; office: string; wards: number[] | null }[]>(ASSIGNERS.includes(persona?.role ?? '') ? '/inspectors' : null)
   const [showNotice, setShowNotice] = useState(false)
   const [inspector, setInspector] = useState('')
   const [demand, setDemand] = useState<number | ''>('')
   const [note, setNote] = useState('')
   const [revised, setRevised] = useState<number | ''>('')
-  if (!c || !persona) return <Notice tone="bad">{t('प्रकरण सापडले नाही.', 'Case not found.')} <Link className="underline" to="/cases">{t('यादीकडे परत', 'Back to list')}</Link></Notice>
-  const p = PROPERTY_BY_ID[c.propertyId]
+  const [busy, setBusy] = useState(false)
+  const [actionError, setActionError] = useState('')
+
+  if (res.error) return <Notice tone="bad">{res.error} <Link className="underline" to="/cases">{t('यादीकडे परत', 'Back to list')}</Link></Notice>
+  if (!res.data || !persona) return <Loading />
+  const c = toCase(res.data)
+  const p = toProperty(res.data.property, res.data.records)
   const role = persona.role
-  const nameOf = (uid?: string) => PERSONAS.find(x => x.id === uid)?.name ?? '—'
-  const can = (...r: string[]) => r.includes(role) || role === 'platform_admin'
-  const inspectors = PERSONAS.filter(x => x.role === 'inspector')
+  const can = (roles: string[]) => roles.includes(role)
   const suggested = inspectorForWard(p.ward)
+  const eligible = (inspectors.data ?? []).filter(i => !i.wards || i.wards.includes(p.ward))
+
+  const run = async (path: string, body: unknown = {}) => {
+    setBusy(true); setActionError('')
+    try { await api(`/cases/${c.id}/${path}`, { method: 'POST', body }); res.reload() }
+    catch (e) { setActionError((e as Error).message) }
+    finally { setBusy(false) }
+  }
 
   return (
     <>
@@ -51,16 +69,16 @@ export default function CaseDetail() {
           </Card>
 
           <Card title={t('प्रत्यक्ष पाहणी', 'Site verification')}>
-            {c.visit ? (
+            {c.visit && res.data.visit ? (
               <>
                 <KV items={[
-                  [t('दिनांक', 'Date'), dmy(c.visit.date)], [t('निरीक्षक', 'Inspector'), nameOf(c.visit.by)],
+                  [t('दिनांक', 'Date'), dmy(c.visit.date)], [t('निरीक्षक', 'Inspector'), res.data.visit.visited_by_name],
                   [t('बांधकाम आढळले', 'Structure found'), c.visit.exists ? t('होय', 'Yes') : t('नाही', 'No')],
                   [t('आढळलेला वापर', 'Usage found'), USAGE[c.visit.usageFound][lang]],
                   [t('मोजलेले क्षेत्रफळ', 'Measured area'), `${num(c.visit.measuredArea)} ${t('चौ.फूट', 'sq ft')}`],
                   ['GPS', <span className="flex items-center gap-1 font-mono text-xs"><MapPin size={13} />{c.visit.gps}</span>],
                 ]} />
-                <p className="mt-3 text-sm"><b>{t('शेरा', 'Remarks')}:</b> {c.visit.remarks}</p>
+                <p className="mt-3 text-sm"><b>{t('शेरा', 'Remarks')}:</b> {c.visit.remarks || '—'}</p>
                 <div className="mt-3"><PhotoThumbs count={c.visit.photos} seed={p.ward + p.area} /></div>
               </>
             ) : <p className="text-sm text-muted">{t('पाहणी अजून झालेली नाही.', 'Not visited yet.')}</p>}
@@ -77,8 +95,8 @@ export default function CaseDetail() {
           <Card title={t('कामकाजाची नोंद', 'Activity')}>
             <ol className="relative ml-2 border-l-2 border-line pl-5 text-sm">
               <li className="mb-3"><div className="font-semibold">{t('जुळवणीत संशय नोंदला', 'Flagged by matching')}</div><div className="text-muted">{dmy(c.openedOn)} · {t('प्रणाली', 'System')}</div></li>
-              {audit.filter(a => a.entity === c.id).reverse().map((a, i) => (
-                <li key={i} className="mb-3"><div className="font-semibold">{a.action}</div><div className="text-muted">{dmy(a.at)} · {nameOf(a.who)}</div></li>
+              {res.data.activity.map((a, i) => (
+                <li key={i} className="mb-3"><div className="font-semibold">{a.action}</div><div className="text-muted">{dmy(a.at)} · {a.who ?? '—'}</div></li>
               ))}
             </ol>
           </Card>
@@ -86,39 +104,42 @@ export default function CaseDetail() {
 
         <div className="flex flex-col gap-4">
           <Card title={t('पुढील कृती', 'Next action')}>
-            {c.status === 'suspected' && (can('ward_officer', 'assessment_officer', 'commissioner') ? (
+            {actionError && <div className="mb-3"><Notice tone="bad">{actionError}</Notice></div>}
+
+            {c.status === 'suspected' && (can(ASSIGNERS) ? (
               <div className="flex flex-col gap-3">
+                {inspectors.error && <LoadError message={inspectors.error} onRetry={inspectors.reload} />}
                 <Field label={t('पाहणीसाठी निरीक्षक', 'Assign inspector')}>
                   <select id="assign-insp" className={inputCls} value={inspector || suggested.id} onChange={e => setInspector(e.target.value)}>
-                    {inspectors.map(i => <option key={i.id} value={i.id}>{i.name} · {i.office}{i.id === suggested.id ? ` (${t('सुचवलेले', 'suggested')})` : ''}</option>)}
+                    {eligible.map(i => <option key={i.id} value={i.id}>{i.name} · {i.office}{i.id === suggested.id ? ` (${t('सुचवलेले', 'suggested')})` : ''}</option>)}
                   </select>
                 </Field>
-                <Button onClick={() => st.assign(c.id, inspector || suggested.id)}>{t('पाहणीसाठी सोपवा', 'Assign for visit')}</Button>
+                <Button disabled={busy || !eligible.length} onClick={() => run('assign', { inspectorId: inspector || suggested.id })}>{t('पाहणीसाठी सोपवा', 'Assign for visit')}</Button>
               </div>
             ) : <p className="text-sm text-muted">{t('प्रभाग अधिकारी निरीक्षकाकडे सोपवतील.', 'Ward officer will assign an inspector.')}</p>)}
 
             {c.status === 'assigned' && (
               <div className="flex flex-col gap-3 text-sm">
-                <p>{t('पाहणी', 'Visit by')}: <b>{nameOf(c.assignedTo)}</b></p>
-                {can('inspector', 'ward_officer') && <Link to={`/field/${c.id}`}><Button className="w-full">{t('Mobile app मध्ये पाहणी उघडा', 'Open visit in mobile app')}</Button></Link>}
+                <p>{t('पाहणी', 'Visit by')}: <b>{res.data.assigned_name ?? '—'}</b></p>
+                {role === 'inspector' && res.data.assigned_to === persona.id && <Link to={`/field/${c.id}`}><Button className="w-full">{t('Mobile app मध्ये पाहणी उघडा', 'Open visit in mobile app')}</Button></Link>}
               </div>
             )}
 
-            {c.status === 'verified' && (can('assessment_officer', 'commissioner') ? (
+            {c.status === 'verified' && (can(APPROVERS) ? (
               <div className="flex flex-col gap-3">
                 <p className="text-sm">{t('पाहणीत खात्री झाली. मागणी तपासून मंजूर करा.', 'Confirmed on site. Check the demand and approve.')}</p>
                 <Field label={t('मंजूर मागणी (₹)', 'Approved demand (₹)')}>
-                  <input id="approve-demand" type="number" className={inputCls} value={demand === '' ? c.estDemand : demand} onChange={e => setDemand(e.target.value === '' ? '' : +e.target.value)} />
+                  <input id="approve-demand" type="number" min={1} className={inputCls} value={demand === '' ? c.estDemand : demand} onChange={e => setDemand(e.target.value === '' ? '' : +e.target.value)} />
                 </Field>
-                <Button onClick={() => st.approve(c.id, demand === '' ? c.estDemand : demand)}><CheckCircle2 size={16} />{t('मंजूर करा व नोटीस पाठवा', 'Approve and send notice')}</Button>
-                <Button variant="secondary" onClick={() => st.dismiss(c.id)}>{t('कारवाई नाही, प्रकरण बंद करा', 'No action, close case')}</Button>
+                <Button disabled={busy} onClick={() => run('approve', { demand: demand === '' ? c.estDemand : demand })}><CheckCircle2 size={16} />{t('मंजूर करा व नोटीस पाठवा', 'Approve and send notice')}</Button>
+                <Button variant="secondary" disabled={busy} onClick={() => run('close')}>{t('कारवाई नाही, प्रकरण बंद करा', 'No action, close case')}</Button>
               </div>
             ) : <p className="text-sm text-muted">{t('कर निर्धारण अधिकाऱ्यांच्या मंजुरीसाठी प्रलंबित.', 'Awaiting assessment officer approval.')}</p>)}
 
-            {c.status === 'not_found' && (can('assessment_officer', 'commissioner') ? (
+            {c.status === 'not_found' && (can(APPROVERS) ? (
               <div className="flex flex-col gap-3 text-sm">
                 <p>{t('पाहणीत संशय खरा ठरला नाही.', 'Site visit did not confirm the flag.')}</p>
-                <Button variant="secondary" onClick={() => st.dismiss(c.id)}>{t('प्रकरण बंद करा', 'Close case')}</Button>
+                <Button variant="secondary" disabled={busy} onClick={() => run('close')}>{t('प्रकरण बंद करा', 'Close case')}</Button>
               </div>
             ) : <p className="text-sm text-muted">{t('संशय खरा ठरला नाही.', 'Flag not confirmed.')}</p>)}
 
@@ -126,21 +147,21 @@ export default function CaseDetail() {
               <div className="flex flex-col gap-3 text-sm">
                 <p>{t('नोटीस', 'Notice')} <b className="font-mono">{c.noticeNo}</b> · {dmy(c.noticeDate)}</p>
                 <p>{t('मागणी', 'Demand')}: <b className="tnum">{inr(c.approvedDemand ?? 0)}</b></p>
-                {can('recovery_clerk', 'assessment_officer') && <Button onClick={() => st.recordPayment(c.id)}>{t('भरणा नोंदवा', 'Record payment')}</Button>}
+                {can(['recovery_clerk', 'assessment_officer']) && <Button disabled={busy} onClick={() => run('payment')}>{t('भरणा नोंदवा', 'Record payment')}</Button>}
               </div>
             )}
 
-            {c.status === 'objection' && (can('hearing_officer') ? (
+            {c.status === 'objection' && (role === 'hearing_officer' ? (
               <div className="flex flex-col gap-3">
                 <Field label={t('सुनावणी शेरा', 'Hearing note')}>
                   <textarea id="hearing-note" className={inputCls} rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder={t('उदा. पुन्हा मोजणी केली, क्षेत्रफळ बरोबर आढळले.', 'e.g. Re-measured; area found correct.')} />
                 </Field>
                 <Field label={t('सुधारित मागणी (हरकत मान्य केल्यास)', 'Revised demand (if upheld)')}>
-                  <input id="hearing-revised" type="number" className={inputCls} value={revised} onChange={e => setRevised(e.target.value === '' ? '' : +e.target.value)} placeholder={String(Math.round((c.approvedDemand ?? 0) * 0.85))} />
+                  <input id="hearing-revised" type="number" min={1} className={inputCls} value={revised} onChange={e => setRevised(e.target.value === '' ? '' : +e.target.value)} placeholder={String(Math.round((c.approvedDemand ?? 0) * 0.85))} />
                 </Field>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button onClick={() => st.decideObjection(c.id, true, note || t('हरकत मान्य.', 'Objection upheld.'), revised === '' ? Math.round((c.approvedDemand ?? 0) * 0.85) : revised)}>{t('मान्य करा', 'Uphold')}</Button>
-                  <Button variant="secondary" onClick={() => st.decideObjection(c.id, false, note || t('पाहणी अहवाल ग्राह्य. हरकत फेटाळली.', 'Site report stands. Objection rejected.'))}>{t('फेटाळा', 'Reject')}</Button>
+                  <Button disabled={busy} onClick={() => run('objection/decision', { upheld: true, note: note || t('हरकत मान्य.', 'Objection upheld.'), revisedDemand: revised === '' ? Math.round((c.approvedDemand ?? 0) * 0.85) : revised })}>{t('मान्य करा', 'Uphold')}</Button>
+                  <Button variant="secondary" disabled={busy} onClick={() => run('objection/decision', { upheld: false, note: note || t('पाहणी अहवाल ग्राह्य. हरकत फेटाळली.', 'Site report stands. Objection rejected.') })}>{t('फेटाळा', 'Reject')}</Button>
                 </div>
               </div>
             ) : <p className="text-sm text-muted">{t('सुनावणी अधिकाऱ्यांकडे प्रलंबित.', 'Pending with the hearing officer.')}</p>)}
@@ -162,7 +183,7 @@ export default function CaseDetail() {
       </div>
 
       <Modal open={showNotice} onClose={() => setShowNotice(false)} title={t('मागणी नोटीस', 'Demand notice')} wide>
-        <NoticeLetter c={c} />
+        <NoticeLetter c={c} p={p} />
       </Modal>
     </>
   )

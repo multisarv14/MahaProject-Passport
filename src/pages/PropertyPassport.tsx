@@ -1,23 +1,30 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PROPERTY_BY_ID, WARD_NAMES, PERSONAS } from '../data/mock'
+import { WARD_NAMES } from '../data/mock'
+import { useApi } from '../api/useApi'
+import { toProperty } from '../api/adapters'
+import type { ApiCase, ApiProperty } from '../api/types'
 import { RULES, USAGE } from '../lib/labels'
 import { inr, num, dmy } from '../lib/format'
-import { Badge, Card, KV, Notice, PageHeader, StatusBadge, Tabs } from '../components/ui'
+import { Badge, Card, KV, LoadError, Loading, Notice, PageHeader, StatusBadge, Tabs } from '../components/ui'
 import { MiniMap, SourceComparison } from '../components/Evidence'
 
 type Tab = 'summary' | 'tax' | 'oc' | 'elec' | 'igr' | 'water' | 'case'
 
 export default function PropertyPassport() {
   const { id = '' } = useParams()
-  const { t, lang, cases, audit } = useStore()
+  const { t, lang } = useStore()
   const [tab, setTab] = useState<Tab>('summary')
-  const p = PROPERTY_BY_ID[id]
-  if (!p) return <Notice tone="bad">{t('हा Passport सापडला नाही.', 'Passport not found.')} <Link to="/registry" className="underline">{t('शोधाकडे परत', 'Back to registry')}</Link></Notice>
-  const c = cases.find(x => x.propertyId === p.id)
+  const prop = useApi<ApiProperty>(`/properties/${encodeURIComponent(id)}`)
+  const caseId = prop.data?.case_id
+  const cd = useApi<ApiCase>(caseId ? `/cases/${caseId}` : null)
+  if (prop.error) return <Notice tone="bad">{t('हा Passport सापडला नाही.', 'Passport not found.')} <Link to="/registry" className="underline">{t('शोधाकडे परत', 'Back to registry')}</Link></Notice>
+  if (!prop.data) return <Loading />
+  if (cd.error) return <LoadError message={cd.error} onRetry={cd.reload} />
+  const p = toProperty(prop.data)
+  const c = cd.data
   const none = <p className="text-sm text-muted">{t('या विभागाकडे या मालमत्तेची नोंद नाही.', 'This department has no record for this property.')}</p>
-  const nameOf = (uid?: string) => PERSONAS.find(x => x.id === uid)?.name ?? '—'
 
   return (
     <>
@@ -83,9 +90,9 @@ export default function PropertyPassport() {
           ]} /> : none)}
           {tab === 'case' && (c ? (
             <ol className="relative ml-2 border-l-2 border-line pl-5 text-sm">
-              <li className="mb-4"><div className="font-semibold">{t('जुळवणीत संशय नोंदला', 'Flagged by matching')}</div><div className="text-muted">{dmy(c.openedOn)} · {c.rules.join(', ')}</div></li>
-              {audit.filter(a => a.entity === c.id).reverse().map((a, i) => (
-                <li key={i} className="mb-4"><div className="font-semibold">{a.action}</div><div className="text-muted">{dmy(a.at)} · {nameOf(a.who)}</div></li>
+              <li className="mb-4"><div className="font-semibold">{t('जुळवणीत संशय नोंदला', 'Flagged by matching')}</div><div className="text-muted">{dmy(c.opened_on)} · {c.rules.join(', ')}</div></li>
+              {c.activity.map((a, i) => (
+                <li key={i} className="mb-4"><div className="font-semibold">{a.action}</div><div className="text-muted">{dmy(a.at)} · {a.who ?? '—'}</div></li>
               ))}
             </ol>
           ) : <p className="text-sm text-muted">{t('या मालमत्तेवर कोणतेही प्रकरण नाही.', 'No case on this property.')}</p>)}

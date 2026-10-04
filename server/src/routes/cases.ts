@@ -69,7 +69,7 @@ export default async function caseRoutes(app: FastifyInstance) {
   })
 
   app.get('/properties', { preHandler: requireRole(...CASE_READERS) }, async req => {
-    const q = z.object({ q: z.string().optional(), ward: z.coerce.number().optional(), limit: z.coerce.number().max(200).default(40), offset: z.coerce.number().default(0) }).parse(req.query)
+    const q = z.object({ q: z.string().optional(), ward: z.coerce.number().optional(), flagged: z.coerce.boolean().optional(), limit: z.coerce.number().max(200).default(40), offset: z.coerce.number().default(0) }).parse(req.query)
     const like = q.q ? `%${q.q}%` : null
     const rows = await sql`SELECT p.id, p.ward, p.address, p.owner_name, p.usage, p.area_sqft,
         array(SELECT DISTINCT source FROM source_records s WHERE s.property_id = p.id) AS sources,
@@ -77,6 +77,7 @@ export default async function caseRoutes(app: FastifyInstance) {
       FROM properties p
       WHERE ${scope(sql, req.user)}
         AND (${q.ward ?? null}::int IS NULL OR p.ward = ${q.ward ?? null})
+        AND (${q.flagged ? true : null}::boolean IS NULL OR EXISTS (SELECT 1 FROM cases c WHERE c.property_id = p.id))
         AND (${like}::text IS NULL OR p.id ILIKE ${like} OR p.address ILIKE ${like} OR p.owner_name ILIKE ${like})
       ORDER BY p.id LIMIT ${q.limit} OFFSET ${q.offset}`
     return rows
@@ -85,7 +86,9 @@ export default async function caseRoutes(app: FastifyInstance) {
   app.get('/properties/:id', { preHandler: requireRole(...CASE_READERS, 'citizen') }, async (req, reply) => {
     const { id } = req.params as { id: string }
     const [p] = await sql`SELECT id, ward, address, owner_name, owner_user_id, usage, area_sqft,
-        ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng FROM properties p WHERE id = ${id} AND ${scope(sql, req.user)}`
+        ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng,
+        (SELECT c.id FROM cases c WHERE c.property_id = p.id LIMIT 1) AS case_id
+      FROM properties p WHERE id = ${id} AND ${scope(sql, req.user)}`
     if (!p || (req.user.role === 'citizen' && p.owner_user_id !== req.user.id)) return reply.code(404).send({ error: 'NOT_FOUND', message: 'Property not found.' })
     return { ...p, records: await loadRecords(sql, id) }
   })
@@ -109,7 +112,7 @@ export default async function caseRoutes(app: FastifyInstance) {
 
   app.get('/cases/:id', { preHandler: requireRole(...CASE_READERS, 'citizen') }, async (req, reply) => {
     const { id } = req.params as { id: string }
-    const [c] = await sql`SELECT c.*, p.ward, p.owner_user_id FROM cases c JOIN properties p ON p.id = c.property_id WHERE c.id = ${id} AND ${scope(sql, req.user)}`
+    const [c] = await sql`SELECT c.*, p.ward, p.owner_user_id, u.name AS assigned_name FROM cases c JOIN properties p ON p.id = c.property_id LEFT JOIN users u ON u.id = c.assigned_to WHERE c.id = ${id} AND ${scope(sql, req.user)}`
     if (!c || (req.user.role === 'citizen' && c.owner_user_id !== req.user.id)) return reply.code(404).send({ error: 'NOT_FOUND', message: 'Case not found.' })
     const [property] = await sql`SELECT id, ward, address, owner_name, usage, area_sqft FROM properties WHERE id = ${c.property_id}`
     const [visit] = await sql`SELECT v.*, u.name AS visited_by_name, ST_Y(v.gps::geometry) AS lat, ST_X(v.gps::geometry) AS lng
@@ -210,6 +213,17 @@ export default async function caseRoutes(app: FastifyInstance) {
     const { limit } = z.object({ limit: z.coerce.number().max(500).default(100) }).parse(req.query)
     return sql`SELECT a.at, a.action, a.entity, a.role, u.name AS who FROM audit_log a LEFT JOIN users u ON u.id = a.user_id ORDER BY a.at DESC, a.id DESC LIMIT ${limit}`
   })
+
+  app.get('/objections', { preHandler: requireRole('hearing_officer', 'assessment_officer', 'commissioner', 'platform_admin', 'auditor') }, async req =>
+    sql`SELECT o.*, c.status, c.approved_demand, p.owner_name, p.address
+      FROM objections o JOIN cases c ON c.id = o.case_id JOIN properties p ON p.id = c.property_id
+      WHERE ${scope(sql, req.user)} ORDER BY (o.decision IS NULL) DESC, o.filed_on DESC`)
+
+  app.get('/messages', { preHandler: requireRole('platform_admin', 'assessment_officer', 'commissioner') }, async () =>
+    sql`SELECT id, case_id, channel, template, recipient, sent_at FROM messages ORDER BY sent_at DESC LIMIT 200`)
+
+  app.get('/users', { preHandler: requireRole('platform_admin') }, async () =>
+    sql`SELECT id, name, role, office_name AS office, wards, active FROM users ORDER BY created_at, id`)
 
   app.get('/inspectors', { preHandler: requireRole('ward_officer', 'assessment_officer', 'commissioner', 'platform_admin') }, async () =>
     sql`SELECT id, name, office_name AS office, wards FROM users WHERE role = 'inspector' AND active ORDER BY id`)

@@ -1,11 +1,10 @@
-import type { Case } from '../data/types'
-import { CITY, PROPERTY_BY_ID, RATE } from '../data/mock'
+import type { Case, Property } from '../data/types'
+import { CITY, RATE } from '../data/mock'
 import { RULES, USAGE } from '../lib/labels'
 import { inr, num, dmy } from '../lib/format'
 
 /** Demand notice preview. Always Marathi, as issued by the municipal office. Marked as a demo sample. */
-export function NoticeLetter({ c }: { c: Case }) {
-  const p = PROPERTY_BY_ID[c.propertyId]
+export function NoticeLetter({ c, p }: { c: Case; p: Property }) {
   return (
     <div className="relative overflow-hidden rounded border border-line bg-white p-6 text-[15px] leading-relaxed">
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-7xl font-bold text-bad/10 select-none [transform:rotate(-20deg)]">नमुना · DEMO</div>

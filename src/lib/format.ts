@@ -10,8 +10,14 @@ export function inrShort(n: number, lang: Lang) {
 
 export const num = (n: number) => n.toLocaleString('en-IN')
 
-export const dmy = (iso?: string) => {
+export const dmy = (iso?: string | null) => {
   if (!iso) return '—'
+  if (iso.includes('T')) {
+    // Timestamp from the API: show in the viewer's local time.
+    const d = new Date(iso)
+    const p = (n: number) => String(n).padStart(2, '0')
+    return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
+  }
   const [d, t] = iso.split(' ')
   const [y, m, day] = d.split('-')
   return `${day}-${m}-${y}${t ? ' ' + t : ''}`

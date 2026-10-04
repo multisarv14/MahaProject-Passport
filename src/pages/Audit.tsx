@@ -1,16 +1,20 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PERSONAS } from '../data/mock'
+import { useApi } from '../api/useApi'
+import type { ApiAudit } from '../api/types'
 import { ROLES } from '../lib/labels'
 import { dmy } from '../lib/format'
-import { Button, Card, PageHeader, Table, inputCls } from '../components/ui'
+import { Button, Card, LoadError, Loading, PageHeader, Table, inputCls } from '../components/ui'
 
 export default function Audit() {
-  const { t, lang, audit } = useStore()
+  const { t, lang } = useStore()
   const [q, setQ] = useState('')
   const [limit, setLimit] = useState(60)
-  const rows = audit.filter(a => !q || [a.action, a.entity, PERSONAS.find(p => p.id === a.who)?.name].some(v => v?.includes(q)))
+  const { data, error, reload } = useApi<ApiAudit[]>('/audit?limit=500')
+  if (error) return <LoadError message={error} onRetry={reload} />
+  if (!data) return <Loading />
+  const rows = data.filter(a => !q || [a.action, a.entity, a.who].some(v => v?.includes(q)))
   return (
     <>
       <PageHeader title="Audit Log" sub={t('प्रत्येक महत्त्वाची कृती: कोणी, कोणत्या भूमिकेत, काय आणि कधी. नोंदी बदलता किंवा हटवता येत नाहीत.', 'Every important action: who, in which role, what and when. Entries cannot be edited or deleted.')} />
@@ -20,8 +24,8 @@ export default function Audit() {
           {rows.slice(0, limit).map((a, i) => (
             <tr key={i}>
               <td className="tnum whitespace-nowrap">{dmy(a.at)}</td>
-              <td>{PERSONAS.find(p => p.id === a.who)?.name ?? a.who}</td>
-              <td>{ROLES[a.role][lang]}</td>
+              <td>{a.who ?? t('प्रणाली', 'System')}</td>
+              <td>{a.role ? ROLES[a.role][lang] : '—'}</td>
               <td>{a.action}</td>
               <td>{a.entity.startsWith('C-') ? <Link className="font-mono text-xs text-info underline" to={`/cases/${a.entity}`}>{a.entity}</Link> : <span className="font-mono text-xs">{a.entity}</span>}</td>
             </tr>

@@ -2,10 +2,11 @@ import { useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   BarChart3, Bell, Building2, ClipboardList, Database, FileSearch, Gavel, GitMerge, Landmark, LayoutDashboard,
-  LogOut, Map, Menu, ScrollText, Settings, ShieldCheck, Smartphone, Store, Users, Wallet, RotateCcw, FileText,
+  LogOut, Map, Menu, ScrollText, Settings, ShieldCheck, Smartphone, Store, Users, Wallet, FileText,
 } from 'lucide-react'
 import { useStore } from '../store/store'
-import { PERSONAS, CITY } from '../data/mock'
+import { CITY } from '../data/mock'
+import { useApi } from '../api/useApi'
 import { ROLES } from '../lib/labels'
 import type { RoleId } from '../data/types'
 import { cx } from './ui'
@@ -56,10 +57,10 @@ export const NAV: Group[] = [
 ]
 
 export function Layout() {
-  const { persona, lang, setLang, t, login, logout, reset } = useStore()
+  const { persona, lang, setLang, t, demoLogin, logout } = useStore()
+  const { data: demoUsers } = useApi<{ id: string; name: string; role: RoleId }[]>('/demo/users')
   const nav = useNavigate()
   const [open, setOpen] = useState(false)
-  const [confirmReset, setConfirmReset] = useState(false)
   if (!persona) return null
   const groups = NAV.map(g => ({ ...g, items: g.items.filter(i => i.roles === 'all' || i.roles.includes(persona.role)) })).filter(g => g.items.length)
 
@@ -97,29 +98,24 @@ export function Layout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex flex-wrap items-center gap-2 border-b border-line bg-white px-4 py-2">
           <button className="rounded p-1.5 hover:bg-paper lg:hidden" onClick={() => setOpen(true)} aria-label="Menu"><Menu size={20} /></button>
-          <span className="rounded bg-file-soft px-2 py-0.5 text-xs font-bold text-file">DEMO</span>
+          {demoUsers && <span className="rounded bg-file-soft px-2 py-0.5 text-xs font-bold text-file">DEMO</span>}
           <div className="flex-1" />
-          <label className="flex items-center gap-2 text-sm">
-            <Users size={16} className="text-muted" />
-            <select aria-label="Role" className="max-w-[16rem] rounded border border-line bg-white px-2 py-1 text-sm"
-              value={persona.id} onChange={e => { login(e.target.value); nav('/') }}>
-              {PERSONAS.map(p => <option key={p.id} value={p.id}>{ROLES[p.role][lang]} · {p.name}</option>)}
-            </select>
-          </label>
+          {demoUsers ? (
+            <label className="flex items-center gap-2 text-sm" title={t('Demo: भूमिका बदला', 'Demo: switch role')}>
+              <Users size={16} className="text-muted" />
+              <select aria-label="Role" className="max-w-[16rem] rounded border border-line bg-white px-2 py-1 text-sm"
+                value={persona.id} onChange={async e => { const id = e.target.value; await demoLogin(id); nav(id === 'u_cit' ? '/citizen' : '/') }}>
+                {demoUsers.map(p => <option key={p.id} value={p.id}>{ROLES[p.role][lang]} · {p.name}</option>)}
+              </select>
+            </label>
+          ) : (
+            <span className="text-sm"><b>{persona.name}</b> · {ROLES[persona.role][lang]}</span>
+          )}
           <div className="flex overflow-hidden rounded border border-line text-sm">
             {(['mr', 'en'] as const).map(l => (
               <button key={l} onClick={() => setLang(l)} className={cx('px-2 py-1', lang === l ? 'bg-ink text-white' : 'bg-white')}>{l === 'mr' ? 'मराठी' : 'EN'}</button>
             ))}
           </div>
-          {confirmReset ? (
-            <span className="flex items-center gap-1 text-sm">
-              {t('Demo data पूर्ववत करायचा?', 'Reset demo data?')}
-              <button className="rounded bg-bad px-2 py-1 text-white" onClick={() => { reset(); setConfirmReset(false) }}>{t('हो', 'Yes')}</button>
-              <button className="rounded border border-line px-2 py-1" onClick={() => setConfirmReset(false)}>{t('नाही', 'No')}</button>
-            </span>
-          ) : (
-            <button title={t('Demo data पूर्ववत करा', 'Reset demo data')} className="rounded p-1.5 text-muted hover:bg-paper" onClick={() => setConfirmReset(true)}><RotateCcw size={17} /></button>
-          )}
           <button title={t('बाहेर पडा', 'Log out')} className="rounded p-1.5 text-muted hover:bg-paper" onClick={() => { logout(); nav('/login') }}><LogOut size={17} /></button>
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">

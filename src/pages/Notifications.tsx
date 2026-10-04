@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/store'
+import { useApi } from '../api/useApi'
 import { dmy } from '../lib/format'
 import { Badge, Card, PageHeader, Table } from '../components/ui'
 
@@ -11,7 +12,9 @@ const TEMPLATES = [
 ]
 
 export default function Notifications() {
-  const { t, lang, messages } = useStore()
+  const { t, lang } = useStore()
+  const { data } = useApi<{ id: number; case_id: string; channel: 'SMS' | 'WhatsApp'; template: string; sent_at: string }[]>('/messages')
+  const messages = data ?? []
   return (
     <>
       <PageHeader title={t('सूचना: SMS / WhatsApp', 'Notifications: SMS / WhatsApp')} sub={t('नागरिकांना app download करावे लागत नाही. सर्व सूचना मराठीत.', 'Citizens need no app. All messages in Marathi.')} />
@@ -28,8 +31,8 @@ export default function Notifications() {
         </Card>
         <Card title={t('पाठवलेले संदेश', 'Sent messages')}>
           <Table head={[t('वेळ', 'Time'), t('माध्यम', 'Channel'), t('नमुना', 'Template'), t('प्रकरण', 'Case')]} empty={!messages.length}>
-            {messages.map((m, i) => (
-              <tr key={i}><td className="tnum">{dmy(m.at)}</td><td><Badge tone={m.channel === 'SMS' ? 'info' : 'ok'}>{m.channel}</Badge></td><td>{m.template}</td><td><Link className="font-mono text-xs text-info underline" to={`/cases/${m.caseId}`}>{m.caseId}</Link></td></tr>
+            {messages.map(m => (
+              <tr key={m.id}><td className="tnum">{dmy(m.sent_at)}</td><td><Badge tone={m.channel === 'SMS' ? 'info' : 'ok'}>{m.channel}</Badge></td><td>{m.template}</td><td><Link className="font-mono text-xs text-info underline" to={`/cases/${m.case_id}`}>{m.case_id}</Link></td></tr>
             ))}
           </Table>
           {!messages.length && <p className="text-center text-xs text-muted">{t('एखादे प्रकरण मंजूर केल्यावर संदेश येथे दिसतील.', 'Messages appear here once a case is approved.')}</p>}

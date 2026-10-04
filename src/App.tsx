@@ -40,8 +40,17 @@ function Home() {
 }
 
 function RequireLogin({ children }: { children: ReactNode }) {
-  const { persona } = useStore()
-  return persona ? <>{children}</> : <Navigate to="/login" replace />
+  const { persona, ready } = useStore()
+  if (!ready) return null
+  if (!persona) return <Navigate to="/login" replace />
+  if (persona.role === 'citizen') return <Navigate to="/citizen" replace />
+  return <>{children}</>
+}
+
+function CitizenOnly() {
+  const { persona, ready } = useStore()
+  if (!ready) return null
+  return persona?.role === 'citizen' ? <Citizen /> : <Navigate to={persona ? '/' : '/login'} replace />
 }
 
 export default function App() {
@@ -50,7 +59,7 @@ export default function App() {
       <HashRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/citizen" element={<Citizen />} />
+          <Route path="/citizen" element={<CitizenOnly />} />
           <Route element={<RequireLogin><Layout /></RequireLogin>}>
             <Route index element={<Home />} />
             <Route path="registry" element={<Registry />} />
