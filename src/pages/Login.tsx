@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
 import { useStore } from '../store/store'
@@ -22,6 +22,7 @@ export default function Login() {
   const { t, lang, setLang, signIn, demoLogin } = useStore()
   const nav = useNavigate()
   const { data: demoUsers } = useApi<DemoUser[]>('/demo/users')
+  const { data: demoConfig } = useApi<{ defaultMobile: string | null }>('/demo/config')
   const [step, setStep] = useState<'mobile' | 'otp'>('mobile')
   const [mobile, setMobile] = useState('')
   const [otp, setOtp] = useState('')
@@ -29,6 +30,10 @@ export default function Login() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [sel, setSel] = useState('u_comm')
+  const [prefilled, setPrefilled] = useState(false)
+  useEffect(() => {
+    if (!prefilled && demoConfig?.defaultMobile) { setMobile(demoConfig.defaultMobile); setPrefilled(true) }
+  }, [demoConfig, prefilled])
 
   const go = (u: SessionUser) => nav(u.role === 'citizen' ? '/citizen' : '/')
 

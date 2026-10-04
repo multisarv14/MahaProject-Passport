@@ -8,6 +8,12 @@ import { requireUser, type SessionUser } from '../lib/auth.ts'
 const hash = (s: string) => createHash('sha256').update(s).digest('hex')
 const demo = () => process.env.DEMO_MODE === 'true'
 
+/** Demo-only fixed login: DEMO_MOBILE always receives DEMO_OTP. Ignored unless DEMO_MODE=true. */
+const fixedDemoOtp = (mobile: string) =>
+  demo() && /^\d{10}$/.test(process.env.DEMO_MOBILE ?? '') && /^\d{6}$/.test(process.env.DEMO_OTP ?? '') && mobile === process.env.DEMO_MOBILE
+    ? process.env.DEMO_OTP!
+    : null
+
 async function issue(app: FastifyInstance, userId: string) {
   const [u] = await sql<{ id: string; name: string; role: SessionUser['role']; wards: number[] | null; office_name: string }[]>`
     SELECT id, name, role, wards, office_name FROM users WHERE id = ${userId} AND active`
@@ -22,7 +28,8 @@ export default async function authRoutes(app: FastifyInstance) {
     const { mobile } = z.object({ mobile: z.string().regex(/^\d{10}$/) }).parse(req.body)
     const [u] = await sql`SELECT id FROM users WHERE mobile = ${mobile} AND active`
     // Same response whether or not the number exists, so the endpoint cannot be used to discover users.
-    const code = String(randomInt(100000, 1000000))
+    const fixed = fixedDemoOtp(mobile)
+    const code = fixed ?? String(randomInt(100000, 1000000))
     if (u) {
       const [recent] = await sql`SELECT count(*)::int AS n FROM otp_requests WHERE mobile = ${mobile} AND created_at > now() - interval '10 minutes'`
       if (recent.n >= 5) return reply.code(429).send({ error: 'TOO_MANY_REQUESTS', message: 'Too many OTP requests. Try again in 10 minutes.' })
@@ -30,7 +37,7 @@ export default async function authRoutes(app: FastifyInstance) {
       // Production: send through the SMS gateway here.
       app.log.info({ mobile }, 'OTP issued')
     }
-    return { sent: true, ...(demo() && u ? { devCode: code } : {}) }
+    return { sent: true, ...(demo() && u && !fixed ? { devCode: code } : {}) }
   })
 
   app.post('/auth/verify', { config: { rateLimit: { max: 20, timeWindow: '10 minutes' } } }, async (req, reply) => {
@@ -56,6 +63,11 @@ export default async function authRoutes(app: FastifyInstance) {
   })
 
   app.get('/me', { preHandler: requireUser }, async req => req.user)
+
+  app.get('/demo/config', async (_req, reply) => {
+    if (!demo()) return reply.code(404).send({ error: 'NOT_FOUND' })
+    return { defaultMobile: process.env.DEMO_MOBILE ?? null }
+  })
 
   app.get('/demo/users', async (_req, reply) => {
     if (!demo()) return reply.code(404).send({ error: 'NOT_FOUND' })

@@ -36,10 +36,11 @@ await sql.begin(async tx => {
   const officeOf: Record<string, string> = {
     platform_admin: 'multisarv', state_lead: 'mh', collector: 'dist-namuna', dept_data_officer: 'dept-msedcl',
   }
-  let i = 10
+  let i = 9
   for (const p of PERSONAS) {
+    i++
     await tx`INSERT INTO users (id, name, mobile, role, office_id, office_name, wards, data_source)
-      VALUES (${p.id}, ${p.name}, ${'90000000' + i++}, ${p.role}, ${officeOf[p.role] ?? 'city-nmn'}, ${p.office}, ${wardsFor[p.id] ?? null}, ${p.id === 'u_do' ? 'elec' : null})`
+      VALUES (${p.id}, ${p.name}, ${p.id === 'u_comm' && process.env.DEMO_MOBILE ? process.env.DEMO_MOBILE : '90000000' + i}, ${p.role}, ${officeOf[p.role] ?? 'city-nmn'}, ${p.office}, ${wardsFor[p.id] ?? null}, ${p.id === 'u_do' ? 'elec' : null})`
   }
 
   const rows = PROPERTIES.map(p => ({

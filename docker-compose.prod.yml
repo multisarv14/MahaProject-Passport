@@ -27,6 +27,8 @@ services:
       DATABASE_URL: postgres://maha:${POSTGRES_PASSWORD}@db:5432/maha_passport
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       DEMO_MODE: ${DEMO_MODE:-false}
+      DEMO_MOBILE: ${DEMO_MOBILE:-}
+      DEMO_OTP: ${DEMO_OTP:-}
       PORT: "4000"
     depends_on:
       db:
