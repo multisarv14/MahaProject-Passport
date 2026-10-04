@@ -99,23 +99,25 @@ const parseTariff = (v: string) => (/lt\s*-?\s*(ii|2)\b|commercial|vyav|व्�
 
 export interface RowResult { ok: boolean; data?: Record<string, unknown>; errors: string[] }
 
-export function coerceRow(source: Source, raw: Record<string, string>, mapping: Record<string, string | null>): RowResult {
+/** lang 'en' gives errors with field keys, for machine (API) clients; 'mr' uses the Marathi labels. */
+export function coerceRow(source: Source, raw: Record<string, string>, mapping: Record<string, string | null>, lang: 'mr' | 'en' = 'mr'): RowResult {
   const data: Record<string, unknown> = {}
   const errors: string[] = []
   for (const fd of FIELDS[source]) {
     const col = mapping[fd.key]
     const v = (col ? raw[col] : '')?.toString().trim() ?? ''
-    if (!v) { if (fd.required) errors.push(`${fd.label} रिकामे`); continue }
+    const en = lang === 'en'
+    if (!v) { if (fd.required) errors.push(en ? `${fd.key} is required` : `${fd.label} रिकामे`); continue }
     switch (fd.kind) {
       case 'text': data[fd.key] = v; break
       case 'int': {
         const n = Number(v.replace(/[,₹\s]/g, ''))
         if (Number.isFinite(n) && n >= 0) data[fd.key] = Math.round(n)
-        else errors.push(`${fd.label}: "${v}" संख्या नाही`)
+        else errors.push(en ? `${fd.key}: "${v}" is not a non-negative number` : `${fd.label}: "${v}" संख्या नाही`)
         break
       }
-      case 'date': { const d = parseDate(v); if (d) data[fd.key] = d; else errors.push(`${fd.label}: "${v}" दिनांक ओळखता आला नाही`); break }
-      case 'usage': { const u = parseUsage(v); if (u) data[fd.key] = u; else errors.push(`${fd.label}: "${v}" ओळखता आले नाही`); break }
+      case 'date': { const d = parseDate(v); if (d) data[fd.key] = d; else errors.push(en ? `${fd.key}: "${v}" is not a valid date (use YYYY-MM-DD or DD-MM-YYYY)` : `${fd.label}: "${v}" दिनांक ओळखता आला नाही`); break }
+      case 'usage': { const u = parseUsage(v); if (u) data[fd.key] = u; else errors.push(en ? `${fd.key}: "${v}" must be residential, commercial or mixed` : `${fd.label}: "${v}" ओळखता आले नाही`); break }
       case 'tariff': data[fd.key] = parseTariff(v); break
       case 'bool': data[fd.key] = /^(y|yes|true|1|होय)$/i.test(v); break
     }

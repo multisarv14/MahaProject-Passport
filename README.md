@@ -54,6 +54,16 @@ Server deployment (Oracle Linux, Docker, HTTPS, backups): see [docs/deployment.m
 
 Try it with `docs/sample-data/msedcl_new_connections_oct2026.csv`: 14 English rows link to Marathi passports, 6 create new passports, 2 go to review, 2 are rejected.
 
+## Ways department data comes in
+
+| Channel | Who | How |
+|---|---|---|
+| File | Data officer / assessment officer | CSV or XLSX upload with column mapping and row checks |
+| Form | Data officer / assessment officer | One record at a time, same checks |
+| API | The department's own system | `POST /api/v1/records/{source}` with an `X-API-Key` issued by the administrator (see [docs/integration-api.md](docs/integration-api.md)) |
+
+Every record keeps its channel and sender. Updating a record already linked to a passport re-evaluates that passport's case immediately; if the new data removes the reason for an untouched suspected case, the case is closed and logged as a system action.
+
 ## Security notes
 
 - `DEMO_MODE=true` enables one-click role login and returns the OTP in the API response. It must be `false` in any real deployment.
@@ -61,3 +71,4 @@ Try it with `docs/sample-data/msedcl_new_connections_oct2026.csv`: 14 English ro
 - The platform administrator (vendor) manages users, offices and system health only. The API refuses it every property, case, citizen and department-data endpoint, and it cannot act on any case.
 - User role, wards and active status are re-read on every request, so disabling an account ends its sessions immediately.
 - A department data officer can upload only their own department's files and cannot run matching.
+- API keys are bound to one department, can only send data (never read), are stored as SHA-256 hashes, shown once at creation, and can be revoked instantly.

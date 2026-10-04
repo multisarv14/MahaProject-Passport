@@ -5,6 +5,7 @@ import { parse as parseCsv } from 'csv-parse/sync'
 import { sql, type Sql } from '../db/client.ts'
 import { audit } from '../lib/audit.ts'
 import { requireRole, requireUser, type SessionUser } from '../lib/auth.ts'
+import { createHash } from 'node:crypto'
 import { FIELDS, REF_FIELD, coerceRow, suggestMapping, type Source } from '../lib/fields.ts'
 import { CandidateIndex, decide, prepare } from '../lib/matcher.ts'
 import { confidenceFor, estimateDemand, rulesFor } from '../../../src/lib/rules.ts'
@@ -25,7 +26,7 @@ const fail = (reply: FastifyReply, e: unknown) => {
 async function allowedSource(u: SessionUser, source: Source) {
   if (u.role !== 'dept_data_officer') return
   const [row] = await sql`SELECT data_source FROM users WHERE id = ${u.id}`
-  if (row?.data_source !== source) throw new HttpError(403, 'WRONG_SOURCE', 'You can upload only your own department\'s files.')
+  if (row?.data_source !== source) throw new HttpError(403, 'WRONG_SOURCE', 'आपण फक्त आपल्या विभागाचा data पाठवू शकता. / You can submit only your own department\'s data.')
 }
 
 /** Reads a CSV or XLSX buffer into header names and string-valued rows. */
@@ -81,18 +82,74 @@ function validate(source: Source, rows: { row_no: number; raw: Record<string, st
   return { ok, bad }
 }
 
+type Channel = 'file' | 'form' | 'api'
+
+/**
+ * Upserts clean records (keyed by department reference number). New and changed-address records wait
+ * for the next matching run; changes to records already linked to a passport re-evaluate its case now.
+ */
+async function saveRecords(tx: Sql, source: Source, rows: Record<string, unknown>[], via: { uploadId?: number; channel: Channel; enteredBy: string }, u: SessionUser | null) {
+  const ref = REF_FIELD[source]
+  let inserted = 0, updated = 0
+  const relinked = new Set<string>()
+  for (let i = 0; i < rows.length; i += 500) {
+    const batch = rows.slice(i, i + 500).map(d => ({
+      source, ref_no: String(d[ref]), data: tx.json(d as never), upload_id: via.uploadId ?? null,
+      address: String(d.address ?? ''), name: (d.owner ?? d.name ?? d.buyer ?? null) as string | null,
+      ward: (d.ward ?? null) as number | null, match_status: 'pending', channel: via.channel, entered_by: via.enteredBy,
+    }))
+    const res = await tx`INSERT INTO source_records ${tx(batch)}
+      ON CONFLICT (source, ref_no) DO UPDATE SET data = EXCLUDED.data, upload_id = EXCLUDED.upload_id, name = EXCLUDED.name,
+        ward = coalesce(EXCLUDED.ward, source_records.ward), channel = EXCLUDED.channel, entered_by = EXCLUDED.entered_by, updated_at = now(),
+        -- a new address means the old link may be wrong: send it back to matching
+        property_id = CASE WHEN source_records.address IS DISTINCT FROM EXCLUDED.address THEN NULL ELSE source_records.property_id END,
+        match_status = CASE WHEN source_records.address IS DISTINCT FROM EXCLUDED.address THEN 'pending' ELSE source_records.match_status END,
+        address = EXCLUDED.address
+      RETURNING (xmax = 0) AS inserted, property_id`
+    for (const r of res) {
+      if (r.inserted) inserted++
+      else { updated++; if (r.property_id) relinked.add(r.property_id) }
+    }
+  }
+  for (const pid of relinked) await refreshCase(tx, pid, 1, u)
+  return { inserted, updated, casesRefreshed: relinked.size }
+}
+
+/** Validates records that already use the canonical field names (form and API). */
+function validateCanonical(source: Source, records: Record<string, unknown>[], lang: 'mr' | 'en' = 'mr') {
+  const identity = Object.fromEntries(FIELDS[source].map(f => [f.key, f.key]))
+  const ok: Record<string, unknown>[] = []
+  const bad: { index: number; ref: string | null; errors: string[] }[] = []
+  const seen = new Set<string>()
+  records.forEach((rec, index) => {
+    const raw = Object.fromEntries(Object.entries(rec ?? {}).map(([k, v]) => [k, v == null ? '' : String(v)]))
+    const res = coerceRow(source, raw, identity, lang)
+    const ref = (res.data?.[REF_FIELD[source]] as string | undefined) ?? null
+    if (res.ok && ref && seen.has(ref)) return bad.push({ index, ref, errors: [lang === 'en' ? `${ref}: duplicate in this request` : `क्रमांक ${ref} दोनदा आहे`] })
+    if (ref) seen.add(ref)
+    res.ok ? ok.push(res.data!) : bad.push({ index, ref, errors: res.errors })
+  })
+  return { ok, bad }
+}
+
 const mappingSchema = z.object({ mapping: z.record(z.string(), z.string().nullable()) })
 
 /** Builds the Property view of one passport from its linked records and re-evaluates its case. */
-async function refreshCase(tx: Sql, propertyId: string, matchScore: number, u: SessionUser): Promise<'opened' | 'updated' | null> {
+async function refreshCase(tx: Sql, propertyId: string, matchScore: number, u: SessionUser | null): Promise<'opened' | 'updated' | 'closed' | null> {
   const [p] = await tx<{ id: string; usage: Usage; area_sqft: number }[]>`SELECT id, usage, area_sqft FROM properties WHERE id = ${propertyId}`
   const recs = await tx<{ source: Source; data: Record<string, unknown> }[]>`
-    SELECT DISTINCT ON (source) source, data FROM source_records WHERE property_id = ${propertyId} ORDER BY source, created_at DESC`
+    SELECT DISTINCT ON (source) source, data FROM source_records WHERE property_id = ${propertyId} ORDER BY source, updated_at DESC`
   const view = { usage: p.usage, area: p.area_sqft } as Pick<Property, 'usage' | 'area' | 'tax' | 'oc' | 'elec' | 'igr' | 'water'>
   for (const r of recs) (view as Record<string, unknown>)[r.source] = r.data
   const rules = rulesFor(view)
   const [open] = await tx<{ id: string; status: string }[]>`SELECT id, status FROM cases WHERE property_id = ${propertyId} AND status NOT IN ('closed', 'not_found') ORDER BY opened_on DESC LIMIT 1`
-  if (!rules.length) return null
+  if (!rules.length) {
+    // Newer department data removed the reason for suspicion: close a case nobody has acted on yet.
+    if (open?.status !== 'suspected') return null
+    await tx`UPDATE cases SET status = 'closed', updated_at = now() WHERE id = ${open.id}`
+    await audit(tx, u, 'नवीन माहितीनुसार संशय राहिला नाही, प्रकरण बंद', open.id)
+    return 'closed'
+  }
   const est = estimateDemand(view, rules)
   if (open) {
     if (open.status !== 'suspected') return null
@@ -183,19 +240,7 @@ export default async function ingestRoutes(app: FastifyInstance) {
         if (missing.length) throw new HttpError(400, 'MAPPING_INCOMPLETE', `Map the required columns: ${missing.map(f => f.label).join(', ')}`)
         const rows = await tx<{ row_no: number; raw: Record<string, string> }[]>`SELECT row_no, raw FROM upload_rows WHERE upload_id = ${id} ORDER BY row_no`
         const { ok, bad } = validate(u.source, rows, mapping)
-        const ref = REF_FIELD[u.source as Source]
-        let inserted = 0, updated = 0
-        for (let i = 0; i < ok.length; i += 500) {
-          const batch = ok.slice(i, i + 500).map(r => ({
-            source: u.source, ref_no: String(r.data[ref]), data: tx.json(r.data as never), upload_id: id,
-            address: String(r.data.address ?? ''), name: (r.data.owner ?? r.data.name ?? r.data.buyer ?? null) as string | null,
-            ward: (r.data.ward ?? null) as number | null, match_status: 'pending',
-          }))
-          const res = await tx`INSERT INTO source_records ${tx(batch)}
-            ON CONFLICT (source, ref_no) DO UPDATE SET data = EXCLUDED.data, upload_id = EXCLUDED.upload_id, address = EXCLUDED.address, name = EXCLUDED.name, ward = EXCLUDED.ward
-            RETURNING (xmax = 0) AS inserted`
-          for (const r of res) r.inserted ? inserted++ : updated++
-        }
+        const { inserted, updated } = await saveRecords(tx as unknown as Sql, u.source, ok.map(r => r.data), { uploadId: id, channel: 'file', enteredBy: req.user.id }, req.user)
         const quality = rows.length ? Math.round((ok.length / rows.length) * 100) : 0
         await tx`UPDATE uploads SET status = 'committed', mapping = ${tx.json(mapping as never)}, records = ${ok.length}, rows_ok = ${ok.length}, rows_rejected = ${bad.length}, quality_pct = ${quality} WHERE id = ${id}`
         await tx`DELETE FROM upload_rows WHERE upload_id = ${id}`
@@ -203,6 +248,33 @@ export default async function ingestRoutes(app: FastifyInstance) {
         return { id, inserted, updated, rejected: bad.length, quality, errors: bad.slice(0, 50) }
       })
     } catch (e) { return fail(reply, e) }
+  })
+
+  // One record typed in by a data officer.
+  app.post('/records', { preHandler: requireRole(...UPLOADERS) }, async (req, reply) => {
+    const b = z.object({ source: z.enum(SOURCES), data: z.record(z.string(), z.unknown()) }).parse(req.body)
+    try {
+      await allowedSource(req.user, b.source)
+      const { ok, bad } = validateCanonical(b.source, [b.data])
+      if (!ok.length) return reply.code(400).send({ error: 'INVALID_RECORD', message: bad[0].errors.join('; '), errors: bad[0].errors })
+      return await sql.begin(async tx => {
+        const r = await saveRecords(tx as unknown as Sql, b.source, ok, { channel: 'form', enteredBy: req.user.id }, req.user)
+        const ref = String(ok[0][REF_FIELD[b.source]])
+        await audit(tx as unknown as Sql, req.user, r.inserted ? 'हाताने नवीन नोंद भरली' : 'हाताने नोंद अद्ययावत केली', `${b.source.toUpperCase()}:${ref}`)
+        return { ref, inserted: r.inserted === 1, casesRefreshed: r.casesRefreshed }
+      })
+    } catch (e) { return fail(reply, e) }
+  })
+
+  // Records received by form or API recently, for the data officer's own view.
+  app.get('/records/recent', { preHandler: requireRole(...UPLOADERS) }, async req => {
+    const [me] = await sql`SELECT data_source FROM users WHERE id = ${req.user.id}`
+    const only = req.user.role === 'dept_data_officer' ? me?.data_source ?? '-' : null
+    return sql`SELECT s.id, s.source, s.ref_no, s.address, s.name, s.channel, s.match_status, s.updated_at,
+        coalesce(u.name, ic.name) AS entered_by
+      FROM source_records s LEFT JOIN users u ON u.id = s.entered_by LEFT JOIN integration_clients ic ON ic.id = s.entered_by
+      WHERE s.channel IN ('form', 'api') AND (${only}::text IS NULL OR s.source = ${only})
+      ORDER BY s.updated_at DESC LIMIT 30`
   })
 
   app.post('/uploads/:id/discard', { preHandler: requireRole(...UPLOADERS) }, async (req, reply) => {
@@ -294,5 +366,50 @@ export default async function ingestRoutes(app: FastifyInstance) {
         return { id, propertyId: pid, case: caseResult }
       })
     } catch (e) { return fail(reply, e) }
+  })
+}
+
+
+/**
+ * Machine-to-machine feed for department systems. Authenticated by an API key (X-API-Key) that is
+ * bound to one department; no user session involved. Registered separately from the user routes.
+ */
+export async function integrationRoutes(app: FastifyInstance) {
+  const keyHash = (k: string) => createHash('sha256').update(k).digest('hex')
+  type Client = { id: string; name: string; source: Source }
+
+  async function client(req: { headers: Record<string, unknown> }): Promise<Client | null> {
+    const key = String(req.headers['x-api-key'] ?? '')
+    if (!/^mp_[a-z]+_[0-9a-f]{40}$/.test(key)) return null
+    const [c] = await sql<Client[]>`SELECT id, name, source FROM integration_clients WHERE key_hash = ${keyHash(key)} AND active`
+    return c ?? null
+  }
+
+  const limits = { rateLimit: { max: 120, timeWindow: '1 minute', keyGenerator: (r: { headers: Record<string, unknown>; ip: string }) => 'apikey:' + keyHash(String(r.headers['x-api-key'] ?? r.ip)) } }
+
+  app.get('/v1/fields/:source', { config: limits }, async (req, reply) => {
+    const c = await client(req)
+    if (!c) return reply.code(401).send({ error: 'INVALID_KEY', message: 'Missing, invalid or revoked X-API-Key.' })
+    const { source } = req.params as { source: Source }
+    if (source !== c.source) return reply.code(403).send({ error: 'WRONG_SOURCE', message: `This key may send only "${c.source}" records.` })
+    return FIELDS[source].map(({ key, label, required, kind }) => ({ key, label, required, type: kind }))
+  })
+
+  app.post('/v1/records/:source', { config: limits, bodyLimit: 10 * 1024 * 1024 }, async (req, reply) => {
+    const c = await client(req)
+    if (!c) return reply.code(401).send({ error: 'INVALID_KEY', message: 'Missing, invalid or revoked X-API-Key.' })
+    const { source } = req.params as { source: Source }
+    if (source !== c.source) return reply.code(403).send({ error: 'WRONG_SOURCE', message: `This key may send only "${c.source}" records.` })
+    const body = z.object({ records: z.array(z.record(z.string(), z.unknown())).min(1).max(5000) }).safeParse(req.body)
+    if (!body.success) return reply.code(400).send({ error: 'BAD_REQUEST', message: 'Body must be {"records": [ ... ]} with 1 to 5000 records.' })
+    const { ok, bad } = validateCanonical(source, body.data.records, 'en')
+    const result = await sql.begin(async tx => {
+      const saved = ok.length ? await saveRecords(tx as unknown as Sql, source, ok, { channel: 'api', enteredBy: c.id }, null) : { inserted: 0, updated: 0, casesRefreshed: 0 }
+      await tx`UPDATE integration_clients SET last_used_at = now(), records_received = records_received + ${ok.length} WHERE id = ${c.id}`
+      await tx`INSERT INTO audit_log (user_id, role, action, entity, detail)
+        VALUES (${c.id}, 'integration', 'API द्वारे विभागाचा data प्राप्त', ${'API:' + c.name}, ${tx.json({ source, accepted: ok.length, rejected: bad.length } as never)})`
+      return saved
+    })
+    return { received: body.data.records.length, accepted: ok.length, inserted: result.inserted, updated: result.updated, rejected: bad.length, casesRefreshed: result.casesRefreshed, errors: bad.slice(0, 200) }
   })
 }

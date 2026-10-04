@@ -1,6 +1,6 @@
 // Platform administration: users, offices, system health and the admin's own audit trail.
 // Nothing here returns property, case or citizen data.
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { FastifyInstance } from 'fastify'
@@ -103,10 +103,36 @@ export default async function adminRoutes(app: FastifyInstance) {
     }
   })
 
+  // API keys for department systems. The full key is returned once at creation; only its hash is stored.
+  app.get('/admin/integrations', async () => sql`
+    SELECT ic.id, ic.name, ic.source, ic.key_prefix, ic.active, ic.created_at, ic.last_used_at, ic.records_received, u.name AS created_by
+    FROM integration_clients ic LEFT JOIN users u ON u.id = ic.created_by ORDER BY ic.active DESC, ic.created_at DESC`)
+
+  app.post('/admin/integrations', async req => {
+    const b = z.object({ name: z.string().trim().min(3).max(100), source: z.enum(SOURCES) }).parse(req.body)
+    const key = `mp_live_${randomBytes(20).toString('hex')}`
+    const id = 'int_' + randomBytes(4).toString('hex')
+    await sql.begin(async tx => {
+      await tx`INSERT INTO integration_clients (id, name, source, key_prefix, key_hash, created_by)
+        VALUES (${id}, ${b.name}, ${b.source}, ${key.slice(0, 14)}, ${createHash('sha256').update(key).digest('hex')}, ${req.user.id})`
+      await audit(tx as unknown as Sql, req.user, 'विभागासाठी API key तयार केली', id, { name: b.name, source: b.source })
+    })
+    return { id, key }
+  })
+
+  app.patch('/admin/integrations/:id', async (req, reply) => {
+    const { id } = req.params as { id: string }
+    const { active } = z.object({ active: z.boolean() }).parse(req.body)
+    const [r] = await sql`UPDATE integration_clients SET active = ${active} WHERE id = ${id} RETURNING id, name`
+    if (!r) return reply.code(404).send({ error: 'NOT_FOUND', message: 'API key not found.' })
+    await audit(sql, req.user, active ? 'API key पुन्हा सुरू केली' : 'API key रद्द केली', id, { name: r.name })
+    return { id, active }
+  })
+
   // The admin sees their own actions and sign-ins, not case or data activity.
   app.get('/admin/audit', async () => sql`
     SELECT a.at, a.action, a.entity, a.role, a.detail, u.name AS who
     FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
-    WHERE a.role = 'platform_admin' OR a.action = 'प्रवेश (login)'
+    WHERE a.role IN ('platform_admin', 'integration') OR a.action = 'प्रवेश (login)'
     ORDER BY a.at DESC, a.id DESC LIMIT 300`)
 }

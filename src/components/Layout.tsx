@@ -68,6 +68,7 @@ export const NAV: Group[] = [
       { to: '/admin?tab=users', mr: 'Users', en: 'Users', icon: <Users size={17} />, roles: ['platform_admin'] },
       { to: '/admin?tab=roles', mr: 'भूमिका व अधिकार', en: 'Roles & access', icon: <ShieldCheck size={17} />, roles: ['platform_admin'] },
       { to: '/admin?tab=offices', mr: 'कार्यालये', en: 'Offices', icon: <Landmark size={17} />, roles: ['platform_admin'] },
+      { to: '/admin?tab=integrations', mr: 'API keys (विभाग जोडणी)', en: 'API keys', icon: <GitMerge size={17} />, roles: ['platform_admin'] },
       { to: '/admin?tab=system', mr: 'प्रणाली स्थिती', en: 'System health', icon: <Database size={17} />, roles: ['platform_admin'] },
       { to: '/admin?tab=audit', mr: 'प्रशासन नोंदी', en: 'Admin log', icon: <ScrollText size={17} />, roles: ['platform_admin'] },
       { to: '/admin?tab=settings', mr: 'सेटिंग', en: 'Settings', icon: <Settings size={17} />, roles: ['platform_admin'] },

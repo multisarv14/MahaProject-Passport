@@ -17,7 +17,7 @@ const wardsFor: Record<string, number[] | null> = {
 }
 
 await sql.begin(async tx => {
-  await tx`TRUNCATE match_reviews, matching_runs, upload_rows, messages, payments, objections, visits, cases, source_records, uploads, properties, otp_requests, users, offices RESTART IDENTITY CASCADE`
+  await tx`TRUNCATE integration_clients, match_reviews, matching_runs, upload_rows, messages, payments, objections, visits, cases, source_records, uploads, properties, otp_requests, users, offices RESTART IDENTITY CASCADE`
   await tx`ALTER SEQUENCE passport_no_seq RESTART WITH 1001`
   await tx`ALTER SEQUENCE case_no_seq RESTART WITH 5001`
   // audit_log rows cannot be deleted row by row; TRUNCATE is allowed for demo resets only.

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Download, Upload as UploadIcon } from 'lucide-react'
+import { Download, PenLine, Upload as UploadIcon } from 'lucide-react'
 import { useStore } from '../store/store'
 import { DATA_SOURCES } from '../data/mock'
 import { num, dmy } from '../lib/format'
@@ -12,6 +12,9 @@ type Source = 'tax' | 'oc' | 'elec' | 'igr' | 'water'
 interface Staged { id: number; source: Source; fileName: string; headers: string[]; mapping: Record<string, string | null>; total: number; sample: Record<string, string>[]; fields: { key: string; label: string; required: boolean }[] }
 interface Check { ok: number; rejected: number; missingFields: string[]; errors: { row_no: number; errors: string[] }[] }
 interface Committed { inserted: number; updated: number; rejected: number; quality: number; errors: { row_no: number; errors: string[] }[] }
+interface FieldDef { key: string; label: string; required: boolean; kind: 'text' | 'int' | 'date' | 'usage' | 'tariff' | 'bool' }
+interface RecentRow { id: number; source: Source; ref_no: string; address: string; name: string | null; channel: 'form' | 'api'; match_status: string; updated_at: string; entered_by: string | null }
+
 interface UploadRow { id: number; source: Source; file_name: string; status: string; rows_total: number | null; rows_ok: number | null; rows_rejected: number | null; quality_pct: number | null; uploaded_at: string; uploaded_by: string | null }
 
 const deptName = (s: string, lang: 'mr' | 'en') => DATA_SOURCES.find(d => d.id === s)?.dept[lang] ?? s
@@ -20,6 +23,8 @@ export default function Sources() {
   const { t, lang, persona } = useStore()
   const history = useApi<UploadRow[]>('/uploads')
   const restricted = persona?.role === 'dept_data_officer'
+  const recent = useApi<RecentRow[]>('/records/recent')
+  const [formOpen, setFormOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const [src, setSrc] = useState<Source>('elec')
   const [file, setFile] = useState<File | null>(null)
@@ -50,7 +55,10 @@ export default function Sources() {
       <PageHeader
         title={t('विभागांचा data', 'Department Data Sources')}
         sub={t('विभागांकडून Excel / CSV file. कोणत्याही विभागाला स्वतःची प्रणाली बदलावी लागत नाही.', 'Excel / CSV files from departments. No department changes its own system.')}
-        actions={<Button onClick={() => { reset(); setOpen(true) }}><UploadIcon size={16} />{t('नवीन file upload करा', 'Upload a file')}</Button>}
+        actions={<>
+          <Button variant="secondary" onClick={() => setFormOpen(true)}><PenLine size={16} />{t('हाताने नोंद भरा', 'Enter a record')}</Button>
+          <Button onClick={() => { reset(); setOpen(true) }}><UploadIcon size={16} />{t('नवीन file upload करा', 'Upload a file')}</Button>
+        </>}
       />
 
       <Card title={t('विभागनिहाय नमुना file (format)', 'Template file per department')}>
@@ -83,6 +91,28 @@ export default function Sources() {
         )}
         {history.data && !history.data.length && <p className="text-center text-xs text-muted">{t('Demo data थेट database मध्ये भरला आहे. नवीन file चढवल्यावर ती येथे दिसेल.', 'Demo data was loaded directly. New uploads appear here.')}</p>}
       </Card>
+
+      <Card className="mt-4" title={t('अलीकडील नोंदी: form व API', 'Recent records: form and API')}>
+        {recent.error && <LoadError message={recent.error} onRetry={recent.reload} />}
+        {recent.data && (
+          <Table head={[t('वेळ', 'Time'), t('विभाग', 'Department'), t('क्रमांक', 'Reference'), t('पत्ता', 'Address'), t('कसे आले', 'Channel'), t('कोणी', 'By'), t('जुळवणी', 'Matching')]} empty={!recent.data.length}>
+            {recent.data.map(r => (
+              <tr key={r.id}>
+                <td className="tnum whitespace-nowrap">{dmy(r.updated_at)}</td>
+                <td>{deptName(r.source, lang)}</td>
+                <td className="font-mono text-xs">{r.ref_no}</td>
+                <td className="max-w-xs">{r.address}<div className="text-xs text-muted">{r.name}</div></td>
+                <td>{r.channel === 'api' ? <Badge tone="info">API</Badge> : <Badge tone="file">{t('Form', 'Form')}</Badge>}</td>
+                <td>{r.entered_by ?? '—'}</td>
+                <td>{r.match_status === 'pending' ? <Badge tone="warn">{t('बाकी', 'Pending')}</Badge> : r.match_status === 'review' ? <Badge tone="bad">{t('पडताळणी', 'Review')}</Badge> : <Badge tone="ok">{r.match_status === 'new' ? t('नवीन Passport', 'New passport') : t('जोडली', 'Linked')}</Badge>}</td>
+              </tr>
+            ))}
+          </Table>
+        )}
+        {recent.data && !recent.data.length && <p className="text-center text-xs text-muted">{t('हाताने भरलेल्या किंवा API ने आलेल्या नोंदी येथे दिसतील.', 'Records typed in or received through the API appear here.')}</p>}
+      </Card>
+
+      {formOpen && <RecordForm restricted={restricted} onClose={() => setFormOpen(false)} onSaved={() => { recent.reload(); history.reload() }} />}
 
       <Modal open={open} onClose={close} title={t('विभागाचा data upload', 'Upload department data')} wide>
         <div className="flex flex-col gap-4">
@@ -159,5 +189,62 @@ export default function Sources() {
         </div>
       </Modal>
     </>
+  )
+}
+
+function RecordForm({ restricted, onClose, onSaved }: { restricted: boolean; onClose: () => void; onSaved: () => void }) {
+  const { t, lang } = useStore()
+  const [src, setSrc] = useState<Source>('elec')
+  const fields = useApi<FieldDef[]>(`/fields/${src}`)
+  const [vals, setVals] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [ok, setOk] = useState('')
+  const set = (k: string, v: string) => setVals(x => ({ ...x, [k]: v }))
+
+  const submit = async () => {
+    setBusy(true); setErr(''); setOk('')
+    try {
+      const r = await api<{ ref: string; inserted: boolean }>('/records', { method: 'POST', body: { source: src, data: vals } })
+      setOk(r.inserted ? t(`नोंद ${r.ref} जतन झाली. ती पुढील जुळवणीत मालमत्तेशी जोडली जाईल.`, `Record ${r.ref} saved. It will be matched in the next run.`) : t(`नोंद ${r.ref} अद्ययावत झाली.`, `Record ${r.ref} updated.`))
+      setVals({}); onSaved()
+    } catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
+  }
+
+  const input = (f: FieldDef) => {
+    const common = { id: `rec-${f.key}`, className: inputCls, value: vals[f.key] ?? '', required: f.required }
+    if (f.kind === 'usage') return (
+      <select {...common} onChange={e => set(f.key, e.target.value)}>
+        <option value="">—</option><option value="residential">{t('निवासी', 'Residential')}</option><option value="commercial">{t('व्यावसायिक', 'Commercial')}</option><option value="mixed">{t('मिश्र', 'Mixed')}</option>
+      </select>)
+    if (f.kind === 'tariff') return (
+      <select {...common} onChange={e => set(f.key, e.target.value)}>
+        <option value="">—</option><option value="LT-I Residential">LT-I {t('निवासी', 'Residential')}</option><option value="LT-II Commercial">LT-II {t('व्यावसायिक', 'Commercial')}</option>
+      </select>)
+    return <input {...common} type={f.kind === 'date' ? 'date' : f.kind === 'int' ? 'number' : 'text'} min={f.kind === 'int' ? 0 : undefined} onChange={e => set(f.key, e.target.value)} />
+  }
+
+  return (
+    <Modal open onClose={onClose} title={t('हाताने नोंद भरा', 'Enter a record')} wide>
+      <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); submit() }}>
+        {err && <Notice tone="bad">{err}</Notice>}
+        {ok && <Notice tone="ok">{ok}</Notice>}
+        <Field label={t('विभाग', 'Department')}>
+          <select id="rec-src" className={inputCls} value={src} onChange={e => { setSrc(e.target.value as Source); setVals({}); setOk('') }}>
+            {DATA_SOURCES.map(d => <option key={d.id} value={d.id}>{d.dept[lang]}</option>)}
+          </select>
+        </Field>
+        {restricted && <p className="-mt-2 text-xs text-muted">{t('आपण फक्त आपल्या विभागाच्या नोंदी भरू शकता; इतर विभाग निवडल्यास जतन होणार नाही.', 'You can enter only your own department\'s records.')}</p>}
+        {fields.error && <LoadError message={fields.error} onRetry={fields.reload} />}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {fields.data?.map(f => <Field key={f.key} label={f.label + (f.required ? ' *' : '')}>{input(f)}</Field>)}
+        </div>
+        <p className="text-xs text-muted">{t('* अनिवार्य. आधीच असलेला क्रमांक भरल्यास ती नोंद अद्ययावत होते.', '* required. Entering an existing reference number updates that record.')}</p>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>{t('बंद करा', 'Close')}</Button>
+          <Button type="submit" disabled={busy || !fields.data}>{t('नोंद जतन करा', 'Save record')}</Button>
+        </div>
+      </form>
+    </Modal>
   )
 }

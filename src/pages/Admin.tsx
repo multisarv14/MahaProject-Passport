@@ -10,7 +10,7 @@ import { useApi } from '../api/useApi'
 import type { RoleId, RuleId } from '../data/types'
 import { Badge, Button, Card, Field, LoadError, Loading, Modal, Notice, PageHeader, Table, Tabs, inputCls } from '../components/ui'
 
-type Tab = 'users' | 'roles' | 'offices' | 'system' | 'audit' | 'settings'
+type Tab = 'users' | 'roles' | 'offices' | 'integrations' | 'system' | 'audit' | 'settings'
 type Source = 'tax' | 'oc' | 'elec' | 'igr' | 'water'
 
 interface AdminUser {
@@ -62,12 +62,14 @@ export default function Admin() {
       <PageHeader title={t('प्रशासन', 'Administration')} sub={t('Users, भूमिका, कार्यालये आणि प्रणालीची स्थिती. येथे मालमत्ता, प्रकरणे किंवा नागरिकांची माहिती दिसत नाही.', 'Users, roles, offices and system health. No property, case or citizen data is shown here.')} />
       <Tabs<Tab> value={tab} onChange={setTab} tabs={[
         { id: 'users', label: 'Users' }, { id: 'roles', label: t('भूमिका व अधिकार', 'Roles & access') },
-        { id: 'offices', label: t('कार्यालये', 'Offices') }, { id: 'system', label: t('प्रणाली स्थिती', 'System health') },
+        { id: 'offices', label: t('कार्यालये', 'Offices') }, { id: 'integrations', label: t('API keys (विभाग जोडणी)', 'API keys (department feeds)') },
+        { id: 'system', label: t('प्रणाली स्थिती', 'System health') },
         { id: 'audit', label: t('प्रशासन नोंदी', 'Admin log') }, { id: 'settings', label: t('सेटिंग', 'Settings') },
       ]} />
       {tab === 'users' && <Users />}
       {tab === 'roles' && <Roles />}
       {tab === 'offices' && <Offices />}
+      {tab === 'integrations' && <Integrations />}
       {tab === 'system' && <SystemHealth />}
       {tab === 'audit' && <AdminAudit />}
       {tab === 'settings' && <Settings />}
@@ -294,6 +296,72 @@ function Settings() {
           {(Object.keys(RULES) as RuleId[]).map(r => <tr key={r}><td className="font-mono font-bold">{r}</td><td>{RULES[r][lang]}</td></tr>)}
         </Table>
         <p className="mt-3 text-xs text-muted">{t('आपोआप जोडणी ≥ ८०%, अधिकारी पडताळणी ५५–८०%. नियम किंवा दर बदल शासनाच्या लेखी मंजुरीनंतरच नवीन आवृत्तीत केले जातात; Admin त्यात थेट बदल करू शकत नाही.', 'Auto-link ≥ 80%, officer review 55–80%. Rule or rate changes ship in a new version only after written government approval; the admin cannot change them directly.')}</p>
+      </Card>
+    </div>
+  )
+}
+
+interface Integration { id: string; name: string; source: Source; key_prefix: string; active: boolean; created_at: string; last_used_at: string | null; records_received: string; created_by: string | null }
+
+function Integrations() {
+  const { t, lang } = useStore()
+  const { data, error, reload } = useApi<Integration[]>('/admin/integrations')
+  const [name, setName] = useState('')
+  const [source, setSource] = useState<Source>('elec')
+  const [created, setCreated] = useState<{ name: string; key: string } | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const create = async () => {
+    setBusy(true); setErr('')
+    try { const r = await api<{ key: string }>('/admin/integrations', { method: 'POST', body: { name, source } }); setCreated({ name, key: r.key }); setName(''); setCopied(false); reload() }
+    catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
+  }
+  const toggle = async (i: Integration) => { await api(`/admin/integrations/${i.id}`, { method: 'PATCH', body: { active: !i.active } }).catch(e => setErr(e.message)); reload() }
+  if (error) return <LoadError message={error} onRetry={reload} />
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card title={t('नवीन API key', 'New API key')}>
+        <p className="mb-3 text-sm text-muted">{t('प्रत्येक विभागाच्या प्रणालीसाठी स्वतंत्र key. ती key फक्त त्या विभागाचा data पाठवू शकते; कोणताही data वाचू शकत नाही.', 'One key per department system. A key can only send that department\'s records; it cannot read any data.')}</p>
+        {err && <div className="mb-3"><Notice tone="bad">{err}</Notice></div>}
+        <form className="flex flex-wrap items-end gap-2" onSubmit={e => { e.preventDefault(); create() }}>
+          <Field label={t('प्रणालीचे नाव', 'System name')}><input id="int-name" className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder={t('उदा. MSEDCL Billing System', 'e.g. MSEDCL Billing System')} required minLength={3} /></Field>
+          <Field label={t('विभाग', 'Department')}>
+            <select id="int-source" className={inputCls} value={source} onChange={e => setSource(e.target.value as Source)}>
+              {DATA_SOURCES.map(d => <option key={d.id} value={d.id}>{d.dept[lang]}</option>)}
+            </select>
+          </Field>
+          <Button type="submit" disabled={busy}>{t('Key तयार करा', 'Create key')}</Button>
+        </form>
+        {created && (
+          <div className="mt-4 flex flex-col gap-2 rounded border-2 border-file bg-file-soft p-3">
+            <b>{t(`${created.name} साठी key: ही फक्त आत्ताच दिसेल. सुरक्षितपणे विभागाच्या IT प्रमुखांना द्या.`, `Key for ${created.name}: shown only now. Hand it securely to the department's IT lead.`)}</b>
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="rounded bg-white px-2 py-1 font-mono text-sm break-all">{created.key}</code>
+              <Button size="sm" variant="secondary" onClick={() => navigator.clipboard?.writeText(created.key).then(() => setCopied(true))}>{copied ? t('Copy झाली', 'Copied') : 'Copy'}</Button>
+            </div>
+          </div>
+        )}
+      </Card>
+      <Card title={t('API keys', 'API keys')}>
+        {!data ? <Loading /> : (
+          <Table head={[t('प्रणाली', 'System'), t('विभाग', 'Department'), 'Key', t('तयार', 'Created'), t('शेवटचा वापर', 'Last used'), t('प्राप्त नोंदी', 'Records received'), t('स्थिती', 'Status'), '']} empty={!data.length}>
+            {data.map(i => (
+              <tr key={i.id} className={i.active ? '' : 'opacity-60'}>
+                <td className="font-semibold">{i.name}</td>
+                <td>{DATA_SOURCES.find(d => d.id === i.source)?.dept[lang]}</td>
+                <td className="font-mono text-xs">{i.key_prefix}…</td>
+                <td className="whitespace-nowrap">{dmy(i.created_at)}<div className="text-xs text-muted">{i.created_by}</div></td>
+                <td className="whitespace-nowrap">{dmy(i.last_used_at)}</td>
+                <td className="tnum">{Number(i.records_received).toLocaleString('en-IN')}</td>
+                <td>{i.active ? <Badge tone="ok">{t('सक्रिय', 'Active')}</Badge> : <Badge tone="neutral">{t('रद्द', 'Revoked')}</Badge>}</td>
+                <td><Button size="sm" variant={i.active ? 'danger' : 'secondary'} onClick={() => toggle(i)}>{i.active ? t('रद्द करा', 'Revoke') : t('पुन्हा सुरू', 'Restore')}</Button></td>
+              </tr>
+            ))}
+          </Table>
+        )}
+        <p className="mt-3 text-xs text-muted">{t('विभागाच्या IT साठी तांत्रिक माहिती: docs/integration-api.md. Key हरवली किंवा उघड झाली तर लगेच रद्द करून नवीन तयार करा.', 'Technical guide for department IT: docs/integration-api.md. If a key is lost or exposed, revoke it and create a new one.')}</p>
       </Card>
     </div>
   )

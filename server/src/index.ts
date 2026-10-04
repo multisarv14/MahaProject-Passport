@@ -7,7 +7,7 @@ import rateLimit from '@fastify/rate-limit'
 import { ZodError } from 'zod'
 import authRoutes from './routes/auth.ts'
 import caseRoutes from './routes/cases.ts'
-import ingestRoutes from './routes/ingest.ts'
+import ingestRoutes, { integrationRoutes } from './routes/ingest.ts'
 import adminRoutes from './routes/admin.ts'
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is not set')
@@ -52,5 +52,6 @@ await app.register(authRoutes, { prefix: '/api' })
 await app.register(caseRoutes, { prefix: '/api' })
 await app.register(ingestRoutes, { prefix: '/api' })
 await app.register(adminRoutes, { prefix: '/api' })
+await app.register(integrationRoutes, { prefix: '/api' })
 
 await app.listen({ port: Number(process.env.PORT ?? 4000), host: '0.0.0.0' })
