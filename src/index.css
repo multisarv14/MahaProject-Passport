@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Mukta", "Noto Sans Devanagari", system-ui, sans-serif;
+  --font-display: "Tiro Devanagari Marathi", "Noto Serif Devanagari", Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  --color-ink: #1B2340;
+  --color-ink-soft: #2C3760;
+  --color-muted: #5A6177;
+  --color-line: #D8DCE6;
+  --color-paper: #EEF0F4;
+  --color-file: #B98E3E;
+  --color-file-soft: #F4EAD6;
+
+  --color-ok: #2E7D4F;
+  --color-ok-soft: #E3F2E8;
+  --color-warn: #A86400;
+  --color-warn-soft: #FDF0D9;
+  --color-bad: #B3261E;
+  --color-bad-soft: #FBE7E5;
+  --color-info: #2F5DA8;
+  --color-info-soft: #E6EDF8;
+}
+
+html, body, #root { height: 100%; }
+body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); }
+.tnum { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--color-file); outline-offset: 2px; }

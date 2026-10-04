@@ -1,0 +1,93 @@
+import { Link } from 'react-router-dom'
+import { useStore } from '../store/store'
+import { CITY, PERSONAS, PROPERTIES, WARDS, WARD_NAMES, inspectorForWard, TODAY } from '../data/mock'
+import { RULES } from '../lib/labels'
+import { caseStats, wardOf } from '../lib/stats'
+import { inrShort, num, dmy } from '../lib/format'
+import { BarRow, Button, Card, Kpi, PageHeader, Table } from '../components/ui'
+import type { RuleId } from '../data/types'
+
+export default function CityDashboard() {
+  const { cases, persona, lang, t, audit } = useStore()
+  const wardScope = persona?.role === 'ward_officer' ? [1, 2, 3, 4] : WARDS
+  const scoped = cases.filter(c => wardScope.includes(wardOf(c)))
+  const s = caseStats(scoped)
+  const props = PROPERTIES.filter(p => wardScope.includes(p.ward)).length
+  const funnel = [
+    { mr: 'संशयित (पाहणी बाकी)', en: 'Suspected (not yet visited)', v: s.suspected + s.assigned, tone: 'warn' as const },
+    { mr: 'पाहणी झाली', en: 'Visited', v: s.visited, tone: 'info' as const },
+    { mr: 'खात्री झाली', en: 'Confirmed', v: s.confirmed, tone: 'info' as const },
+    { mr: 'नोटीस पाठवली', en: 'Notice sent', v: s.noticed, tone: 'file' as const },
+    { mr: 'वसूल', en: 'Recovered', v: s.recoveredCount, tone: 'ok' as const },
+  ]
+  const maxRule = Math.max(...Object.values(s.ruleCount))
+  const nameOf = (id: string) => PERSONAS.find(p => p.id === id)?.name ?? id
+
+  return (
+    <>
+      <PageHeader
+        eyebrow={persona?.role === 'ward_officer' ? t('प्रभाग १–४', 'Wards 1–4') : t('शहर', 'City')}
+        title={t(CITY.mr, CITY.en)}
+        sub={t(`मालमत्ता Passport · स्थिती ${dmy(TODAY)} पर्यंत`, `Property Passport · as of ${dmy(TODAY)}`)}
+        actions={<Link to="/cases"><Button>{t('संशयित प्रकरणे पहा', 'Open cases')}</Button></Link>}
+      />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <Kpi label={t('मालमत्ता Passport', 'Property Passports')} value={num(props)} sub={t('५ विभागांच्या नोंदी जोडलेल्या', '5 departments linked')} />
+        <Kpi label={t('संशयित प्रकरणे', 'Suspected cases')} value={num(s.total)} sub={t(`${s.suspected} अजून सोपवायची`, `${s.suspected} not yet assigned`)} tone="warn" />
+        <Kpi label={t('पाहणीत खात्री', 'Confirmed on site')} value={num(s.confirmed)} sub={t(`अचूकता ${s.accuracy}%`, `Accuracy ${s.accuracy}%`)} tone="info" />
+        <Kpi label={t('संभाव्य मागणी', 'Potential demand')} value={inrShort(s.potential, lang)} sub={t('सर्व संशयित प्रकरणे', 'All open cases')} tone="file" />
+        <Kpi label={t('मंजूर मागणी', 'Approved demand')} value={inrShort(s.demand, lang)} sub={t(`${s.noticed} नोटिसा`, `${s.noticed} notices`)} tone="file" />
+        <Kpi label={t('वसुली', 'Recovered')} value={inrShort(s.recovered, lang)} sub={t(`${s.recoveredCount} प्रकरणे`, `${s.recoveredCount} cases`)} tone="ok" />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <Card title={t('प्रकरणांची प्रगती', 'Case progress')}>
+          <div className="flex flex-col gap-3">
+            {funnel.map(f => <BarRow key={f.en} label={t(f.mr, f.en)} value={f.v} max={s.total} tone={f.tone} />)}
+          </div>
+          {s.objections > 0 && <p className="mt-3 text-sm text-bad">{t(`${s.objections} हरकती सुनावणीसाठी प्रलंबित`, `${s.objections} objections awaiting hearing`)} · <Link className="underline" to="/objections">{t('पहा', 'View')}</Link></p>}
+        </Card>
+        <Card title={t('कोणत्या नियमाने किती प्रकरणे', 'Cases by matching rule')}>
+          <div className="flex flex-col gap-3">
+            {(Object.keys(RULES) as RuleId[]).map(r => (
+              <BarRow key={r} label={<span><b className="mr-1 font-mono text-xs">{r}</b>{RULES[r].short[lang]}</span>} value={s.ruleCount[r] ?? 0} max={maxRule} tone="file" />
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <Card className="mt-4" title={t('प्रभागनिहाय स्थिती', 'Ward-wise status')}>
+        <Table head={[t('प्रभाग', 'Ward'), t('प्रकरणे', 'Cases'), t('पाहणी बाकी', 'Pending visit'), t('खात्री', 'Confirmed'), t('मंजूर मागणी', 'Demand'), t('वसुली', 'Recovered'), t('निरीक्षक', 'Inspector')]}>
+          {wardScope.map(w => {
+            const ws = caseStats(scoped.filter(c => wardOf(c) === w))
+            return (
+              <tr key={w}>
+                <td><b>{w}</b> · {WARD_NAMES[w]}</td>
+                <td className="tnum">{ws.total}</td>
+                <td className="tnum">{ws.suspected + ws.assigned}</td>
+                <td className="tnum">{ws.confirmed}</td>
+                <td className="tnum">{inrShort(ws.demand, lang)}</td>
+                <td className="tnum">{inrShort(ws.recovered, lang)}</td>
+                <td>{inspectorForWard(w).name}</td>
+              </tr>
+            )
+          })}
+        </Table>
+      </Card>
+
+      <Card className="mt-4" title={t('अलीकडील कामकाज', 'Recent activity')} action={<Link to="/audit" className="text-sm text-info underline">{t('सर्व पहा', 'View all')}</Link>}>
+        <ul className="flex flex-col divide-y divide-line text-sm">
+          {audit.slice(0, 8).map((a, i) => (
+            <li key={i} className="flex flex-wrap items-center gap-x-3 py-2">
+              <span className="tnum w-36 text-muted">{dmy(a.at)}</span>
+              <span className="font-semibold">{nameOf(a.who)}</span>
+              <span>{a.action}</span>
+              <Link to={a.entity.startsWith('C-') ? `/cases/${a.entity}` : '#'} className="font-mono text-xs text-info">{a.entity}</Link>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </>
+  )
+}
