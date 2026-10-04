@@ -49,21 +49,19 @@ export const PERSONAS: Persona[] = [
   { id: 'u_comm', name: 'राहुल भोसले', role: 'commissioner', office: 'नमुनानगर महानगरपालिका' },
   { id: 'u_ao', name: 'स्नेहल पवार', role: 'assessment_officer', office: 'कर निर्धारण विभाग' },
   { id: 'u_wo', name: 'संदीप कदम', role: 'ward_officer', office: 'प्रभाग कार्यालय (प्रभाग १–४)' },
-  { id: 'u_in1', name: 'अमोल शिंदे', role: 'inspector', office: 'प्रभाग १–२', ward: 1 },
-  { id: 'u_in2', name: 'प्रिया जाधव', role: 'inspector', office: 'प्रभाग ३–४', ward: 3 },
-  { id: 'u_in3', name: 'गणेश माने', role: 'inspector', office: 'प्रभाग ५–६', ward: 5 },
-  { id: 'u_in4', name: 'रोहिणी साळुंखे', role: 'inspector', office: 'प्रभाग ७–८', ward: 7 },
+  // One demo user per role: a single inspector covers every ward so any case can be shown end to end.
+  { id: 'u_in1', name: 'अमोल शिंदे', role: 'inspector', office: 'सर्व प्रभाग' },
   { id: 'u_ho', name: 'मनोज देशपांडे', role: 'hearing_officer', office: 'सुनावणी कक्ष' },
   { id: 'u_rc', name: 'सुनीता वाघ', role: 'recovery_clerk', office: 'वसुली विभाग' },
   { id: 'u_do', name: 'किरण थोरात', role: 'dept_data_officer', office: 'MSEDCL नोडल (Demo)' },
   { id: 'u_aud', name: 'अर्चना लिमये', role: 'auditor', office: 'अंतर्गत लेखापरीक्षण' },
-  { id: 'u_rep', name: 'लोकप्रतिनिधी (Demo)', role: 'representative', office: 'नमुना मतदारसंघ' },
+  { id: 'u_rep', name: 'नमुना मतदारसंघ', role: 'representative', office: 'लोकप्रतिनिधी कार्यालय (Demo)' },
   { id: 'u_bo', name: 'प्रशांत गायकवाड', role: 'business_officer', office: 'व्यवसाय कर कार्यालय (Demo)' },
   { id: 'u_cit', name: 'दत्तात्रय मोरे', role: 'citizen', office: 'मालमत्ताधारक' },
 ]
 
 export const inspectorForWard = (ward: number): Persona | undefined =>
-  PERSONAS.find(p => p.role === 'inspector' && (p.ward === ward || p.ward === ward - 1 && ward % 2 === 0))
+  ward > 0 ? PERSONAS.find(p => p.role === 'inspector' && (p.ward === undefined || p.ward === ward)) : undefined
 
 
 function makeProperties(): Property[] {

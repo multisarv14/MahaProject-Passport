@@ -15,6 +15,13 @@ import { cx } from './ui'
 type Item = { to: string; mr: string; en: string; icon: ReactNode; roles: RoleId[] | 'all' }
 type Group = { mr: string; en: string; items: Item[] }
 
+/** Order of roles in the demo role switcher: leadership, then the case workflow, then others. */
+const ROLE_ORDER: RoleId[] = [
+  'commissioner', 'collector', 'state_lead', 'representative',
+  'ward_officer', 'inspector', 'assessment_officer', 'hearing_officer', 'recovery_clerk',
+  'dept_data_officer', 'business_officer', 'auditor', 'platform_admin', 'citizen',
+]
+
 const OFFICIALS: RoleId[] = ['platform_admin', 'commissioner', 'assessment_officer', 'ward_officer', 'hearing_officer', 'recovery_clerk', 'auditor']
 
 export const NAV: Group[] = [
@@ -154,7 +161,7 @@ export function Layout() {
               <Users size={16} className="text-muted" />
               <select aria-label="Role" className="max-w-[16rem] rounded border border-line bg-white px-2 py-1 text-sm"
                 value={persona.id} onChange={async e => { const id = e.target.value; await demoLogin(id); nav(id === 'u_cit' ? '/citizen' : '/') }}>
-                {demoUsers.map(p => <option key={p.id} value={p.id}>{ROLES[p.role][lang]} · {p.name}</option>)}
+                {[...demoUsers].sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role)).map(p => <option key={p.id} value={p.id}>{ROLES[p.role][lang]} · {p.name}</option>)}
               </select>
             </label>
           ) : (

@@ -13,7 +13,7 @@ const lng = (x: number) => 74.5 + x / 1000
 const point = (x: number, y: number) => `SRID=4326;POINT(${lng(x)} ${lat(y)})`
 
 const wardsFor: Record<string, number[] | null> = {
-  u_wo: [1, 2, 3, 4], u_in1: [1, 2], u_in2: [3, 4], u_in3: [5, 6], u_in4: [7, 8],
+  u_wo: [1, 2, 3, 4],
 }
 
 await sql.begin(async tx => {
