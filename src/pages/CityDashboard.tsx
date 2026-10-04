@@ -42,7 +42,9 @@ export default function CityDashboard() {
         <Kpi label={t('पाहणीत खात्री', 'Confirmed on site')} value={num(s.confirmed)} sub={t(`अचूकता ${s.accuracy}%`, `Accuracy ${s.accuracy}%`)} tone="info" />
         <Kpi label={t('संभाव्य मागणी', 'Potential demand')} value={inrShort(s.potential, lang)} sub={t('सर्व संशयित प्रकरणे', 'All open cases')} tone="file" />
         <Kpi label={t('मंजूर मागणी', 'Approved demand')} value={inrShort(s.demand, lang)} sub={t(`${s.noticed} नोटिसा`, `${s.noticed} notices`)} tone="file" />
-        <Kpi label={t('वसुली', 'Recovered')} value={inrShort(s.recovered, lang)} sub={t(`${s.recoveredCount} प्रकरणे`, `${s.recoveredCount} cases`)} tone="ok" />
+        <Link to="/resolved" className="block rounded-md hover:ring-2 hover:ring-ok/40" title={t('निकाली प्रकरणांची यादी पहा', 'View resolved cases')}>
+          <Kpi label={t('वसुली', 'Recovered')} value={inrShort(s.recovered, lang)} sub={t(`${s.recoveredCount} प्रकरणे · यादी पहा →`, `${s.recoveredCount} cases · view list →`)} tone="ok" />
+        </Link>
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">

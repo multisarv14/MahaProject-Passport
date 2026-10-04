@@ -75,7 +75,11 @@ await sql.begin(async tx => {
       await tx`INSERT INTO objections (case_id, filed_on, text) VALUES (${c.id}, ${c.objection.date}, ${c.objection.text})`
     }
     if (c.status === 'recovered' && c.recovered) {
-      await tx`INSERT INTO payments (case_id, amount, receipt_no, recorded_by) VALUES (${c.id}, ${c.recovered}, ${'RCPT-' + c.id}, 'u_rc')`
+      // Paid a few days after the notice, never in the future
+      const paid = new Date(new Date(c.noticeDate + 'T11:00:00+05:30').getTime() + (3 + (c.recovered % 9)) * 86_400_000)
+      const paidAt = paid.getTime() > Date.now() ? new Date() : paid
+      await tx`INSERT INTO payments (case_id, amount, receipt_no, recorded_by, paid_at) VALUES (${c.id}, ${c.recovered}, ${'RCPT-' + c.id}, 'u_rc', ${paidAt})`
+      await tx`UPDATE cases SET updated_at = ${paidAt} WHERE id = ${c.id}`
     }
   }
 

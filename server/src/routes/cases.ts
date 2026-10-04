@@ -4,6 +4,8 @@ import { sql, type Sql } from '../db/client.ts'
 import { audit } from '../lib/audit.ts'
 import { requireRole, requireUser, type SessionUser } from '../lib/auth.ts'
 import { AGGREGATE_ONLY, CASE_READERS, checkTransition, type Action, type Status } from '../lib/workflow.ts'
+import { annualIncrease } from '../../../src/lib/rules.ts'
+import type { Property, RuleId, Usage } from '../../../src/data/types.ts'
 
 const scope = (tx: Sql, u: SessionUser) => (u.wards ? tx`p.ward = ANY(${u.wards})` : tx`true`)
 
@@ -214,6 +216,57 @@ export default async function caseRoutes(app: FastifyInstance) {
         await tx`UPDATE cases SET recovered = ${amount} WHERE id = ${id}`
       }, 'वसुली नोंदवली')
     } catch (e) { return fail(reply, e) }
+  })
+
+  // Settled cases: recovered (with payment) and closed without action, plus the revenue they brought in.
+  app.get('/resolved', { preHandler: requireRole(...CASE_READERS) }, async req => {
+    const rows = await sql`SELECT c.id, c.property_id, c.rules, c.status, c.approved_demand, c.recovered, c.opened_on, c.notice_no, c.notice_date,
+        p.address, p.owner_name, p.ward, p.usage, p.area_sqft,
+        pay.amount AS paid_amount, pay.paid_at, pay.receipt_no, pu.name AS recorded_by,
+        v.usage_found, v.measured_area, v.structure_found, v.remarks AS visit_remarks, o.decision AS objection_decision,
+        (SELECT max(a.at) FROM audit_log a WHERE a.entity = c.id) AS last_action_at
+      FROM cases c JOIN properties p ON p.id = c.property_id
+      LEFT JOIN LATERAL (SELECT * FROM payments WHERE case_id = c.id ORDER BY paid_at DESC LIMIT 1) pay ON true
+      LEFT JOIN users pu ON pu.id = pay.recorded_by
+      LEFT JOIN LATERAL (SELECT * FROM visits WHERE case_id = c.id ORDER BY id DESC LIMIT 1) v ON true
+      LEFT JOIN LATERAL (SELECT * FROM objections WHERE case_id = c.id ORDER BY id DESC LIMIT 1) o ON true
+      WHERE ${scope(sql, req.user)} AND c.status IN ('recovered', 'closed', 'not_found')
+      ORDER BY coalesce(pay.paid_at, c.updated_at) DESC`
+    const ids = rows.filter(r => r.status === 'recovered').map(r => r.property_id as string)
+    const recs = ids.length ? await sql<{ property_id: string; source: string; data: Record<string, unknown> }[]>`
+      SELECT DISTINCT ON (property_id, source) property_id, source, data FROM source_records
+      WHERE property_id = ANY(${ids}) AND source IN ('tax', 'oc') ORDER BY property_id, source, created_at DESC` : []
+    const byProp = new Map<string, Record<string, unknown>>()
+    for (const r of recs) byProp.set(r.property_id, { ...(byProp.get(r.property_id) ?? {}), [r.source]: r.data })
+
+    const day = 86_400_000
+    const out = rows.map(r => {
+      const recd = byProp.get(r.property_id) ?? {}
+      const view = {
+        tax: recd.tax as Property['tax'], oc: recd.oc as Property['oc'],
+        usage: (r.usage_found ?? r.usage) as Usage, area: Number(r.measured_area || r.area_sqft),
+      }
+      const annual = r.status === 'recovered' ? annualIncrease(view, r.rules as RuleId[]) : 0
+      const doneAt = r.paid_at ?? r.last_action_at
+      return {
+        id: r.id, propertyId: r.property_id, rules: r.rules, status: r.status, address: r.address, owner: r.owner_name, ward: r.ward,
+        approvedDemand: Number(r.approved_demand ?? 0), recovered: Number(r.paid_amount ?? r.recovered ?? 0), annualIncrease: annual,
+        openedOn: r.opened_on, noticeNo: r.notice_no, paidAt: r.paid_at, receiptNo: r.receipt_no, recordedBy: r.recorded_by,
+        visitRemarks: r.visit_remarks, structureFound: r.structure_found, objectionDecision: r.objection_decision,
+        days: doneAt ? Math.max(0, Math.round((new Date(doneAt).getTime() - new Date(r.opened_on + 'T00:00:00').getTime()) / day)) : null,
+      }
+    })
+    const rec = out.filter(r => r.status === 'recovered')
+    return {
+      rows: out,
+      summary: {
+        recoveredAmount: rec.reduce((a, r) => a + r.recovered, 0),
+        annualAdded: rec.reduce((a, r) => a + r.annualIncrease, 0),
+        recoveredCount: rec.length,
+        closedCount: out.length - rec.length,
+        avgDays: rec.length ? Math.round(rec.reduce((a, r) => a + (r.days ?? 0), 0) / rec.length) : 0,
+      },
+    }
   })
 
   app.get('/citizen/my-property', { preHandler: requireRole('citizen') }, async req => {

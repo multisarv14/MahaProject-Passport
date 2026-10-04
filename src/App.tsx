@@ -13,6 +13,7 @@ import Sources from './pages/Sources'
 import Matching from './pages/Matching'
 import Objections from './pages/Objections'
 import Recovery from './pages/Recovery'
+import Resolved from './pages/Resolved'
 import { AreaSummary, DistrictDashboard, StateDashboard } from './pages/Leadership'
 import Business from './pages/Business'
 import Project from './pages/Project'
@@ -72,6 +73,7 @@ export default function App() {
             <Route path="matching" element={<Matching />} />
             <Route path="objections" element={<Objections />} />
             <Route path="recovery" element={<Recovery />} />
+            <Route path="resolved" element={<Resolved />} />
             <Route path="district" element={<DistrictDashboard />} />
             <Route path="state" element={<StateDashboard />} />
             <Route path="area" element={<AreaSummary />} />

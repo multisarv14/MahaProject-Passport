@@ -28,5 +28,14 @@ export function estimateDemand(p: Pick<Property, 'tax' | 'oc' | 'usage' | 'area'
   return Math.round(d / 100) * 100
 }
 
+/** Tax added to the roll every year once the case is settled (the one-time demand also covers back years). */
+export function annualIncrease(p: Pick<Property, 'tax' | 'oc' | 'usage' | 'area'>, rules: RuleId[]): number {
+  let d = 0
+  if (!p.tax && (rules.includes('R1') || rules.includes('R2') || rules.includes('R6'))) d += p.area * RATE[p.usage]
+  if (rules.includes('R3') && p.tax) d += p.tax.assessedArea * (RATE[p.usage] - RATE.residential)
+  if (rules.includes('R5') && p.tax && p.oc) d += (p.oc.builtUpArea - p.tax.assessedArea) * RATE[p.tax.usage]
+  return Math.max(0, Math.round(d / 10) * 10)
+}
+
 export const confidenceFor = (rules: RuleId[], matchScore = 1) =>
   Math.min(97, Math.round((58 + rules.length * 12) * Math.min(1, matchScore + 0.1)))

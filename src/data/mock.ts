@@ -142,10 +142,12 @@ function makeCases(): Case[] {
     if (!rules.length) continue
     n++
     const r = rnd()
-    const status: CaseStatus =
+    const est = estimateDemand(p, rules)
+    let status: CaseStatus =
       r < 0.5 ? 'suspected' : r < 0.65 ? 'assigned' : r < 0.75 ? 'verified' : r < 0.78 ? 'not_found'
         : r < 0.88 ? 'notice_sent' : r < 0.92 ? 'objection' : 'recovered'
-    const est = estimateDemand(p, rules)
+    // Nothing to collect (e.g. only the owner's name changed): the record is corrected and the case closed.
+    if (!est && ['notice_sent', 'objection', 'recovered'].includes(status)) status = 'closed'
     const c: Case = {
       id: `C-${CITY_CODE}-${pad(n, 4)}`,
       propertyId: p.id,
@@ -156,7 +158,7 @@ function makeCases(): Case[] {
       openedOn: dateBack(between(5, 75)),
     }
     if (status !== 'suspected') c.assignedTo = inspectorForWard(p.ward)!.id
-    if (['verified', 'not_found', 'notice_sent', 'objection', 'recovered'].includes(status)) {
+    if (['verified', 'not_found', 'notice_sent', 'objection', 'recovered', 'closed'].includes(status)) {
       c.visit = {
         date: dateBack(between(2, 30)),
         by: c.assignedTo!,
@@ -165,7 +167,9 @@ function makeCases(): Case[] {
         measuredArea: status === 'not_found' ? 0 : Math.round(p.area * (0.95 + rnd() * 0.08)),
         photos: status === 'not_found' ? 2 : between(3, 6),
         gps: `${(19.0 + p.y / 1000).toFixed(5)}, ${(74.5 + p.x / 1000).toFixed(5)}`,
-        remarks: status === 'not_found' ? 'जागेवर बांधकाम आढळले नाही. मोकळा भूखंड.' : 'बांधकाम आढळले, वापर सुरू आहे.',
+        remarks: status === 'not_found' ? 'जागेवर बांधकाम आढळले नाही. मोकळा भूखंड.'
+          : status === 'closed' ? 'नवीन मालकाची खात्री केली. कर नोंदीत मालकाचे नाव दुरुस्त केले.'
+          : 'बांधकाम आढळले, वापर सुरू आहे.',
       }
     }
     if (['notice_sent', 'objection', 'recovered'].includes(status)) {

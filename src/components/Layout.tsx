@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   BarChart3, Bell, Building2, ClipboardList, Database, FileSearch, Gavel, GitMerge, Landmark, LayoutDashboard,
-  LogOut, Map, Menu, ScrollText, Settings, ShieldCheck, Smartphone, Store, Users, Wallet, FileText,
+  LogOut, Map, Menu, BadgeCheck, ScrollText, Settings, ShieldCheck, Smartphone, Store, Users, Wallet, FileText,
 } from 'lucide-react'
 import { useStore } from '../store/store'
 import { CITY } from '../data/mock'
@@ -31,6 +31,7 @@ export const NAV: Group[] = [
       { to: '/field', mr: 'प्रत्यक्ष पाहणी (Mobile)', en: 'Field App (Mobile)', icon: <Smartphone size={17} />, roles: ['inspector', 'ward_officer', 'platform_admin'] },
       { to: '/objections', mr: 'हरकती', en: 'Objections', icon: <Gavel size={17} />, roles: ['hearing_officer', 'assessment_officer', 'commissioner', 'platform_admin'] },
       { to: '/recovery', mr: 'वसुली', en: 'Recovery', icon: <Wallet size={17} />, roles: ['recovery_clerk', 'assessment_officer', 'commissioner', 'platform_admin'] },
+      { to: '/resolved', mr: 'निकाली प्रकरणे व महसूल', en: 'Resolved & Revenue', icon: <BadgeCheck size={17} />, roles: ['commissioner', 'assessment_officer', 'recovery_clerk', 'ward_officer', 'auditor', 'platform_admin'] },
     ],
   },
   {
@@ -65,8 +66,8 @@ export function Layout() {
   const groups = NAV.map(g => ({ ...g, items: g.items.filter(i => i.roles === 'all' || i.roles.includes(persona.role)) })).filter(g => g.items.length)
 
   return (
-    <div className="flex h-full">
-      <aside className={cx('fixed inset-y-0 left-0 z-40 w-64 shrink-0 overflow-y-auto bg-ink text-white transition-transform lg:static lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
+    <div className="flex min-h-full">
+      <aside className={cx('fixed inset-y-0 left-0 z-40 w-64 shrink-0 overflow-y-auto bg-ink text-white transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
         <div className="border-b border-white/10 px-4 py-4">
           <div className="flex items-center gap-2">
             <ShieldCheck className="text-file" size={22} />

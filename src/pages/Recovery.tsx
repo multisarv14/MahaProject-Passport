@@ -28,7 +28,8 @@ export default function Recovery() {
 
   return (
     <>
-      <PageHeader title={t('वसुली', 'Recovery')} sub={t('मंजूर मागणीपैकी किती रक्कम आली आणि किती थकली आहे.', 'How much of the approved demand has been collected and how much is outstanding.')} />
+      <PageHeader title={t('वसुली', 'Recovery')} sub={t('मंजूर मागणीपैकी किती रक्कम आली आणि किती थकली आहे.', 'How much of the approved demand has been collected and how much is outstanding.')}
+        actions={<Link to="/resolved"><Button variant="secondary">{t('वसूल झालेली प्रकरणे पहा', 'View recovered cases')}</Button></Link>} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label={t('मंजूर मागणी', 'Approved demand')} value={inrShort(s.demand, lang)} tone="file" />
         <Kpi label={t('वसूल', 'Collected')} value={inrShort(s.recovered, lang)} tone="ok" />
