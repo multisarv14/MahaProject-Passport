@@ -52,3 +52,11 @@ export const BIZ_FLAGS: Record<'B1' | 'B2' | 'B3', Bi> = {
 }
 
 export type Tone = 'ok' | 'warn' | 'bad' | 'info' | 'file' | 'neutral'
+
+export const CIDCO_FLAGS: Record<'C1' | 'C2' | 'C3' | 'C4' | 'C5', Bi & { short: Bi }> = {
+  C1: { short: { mr: 'विक्री झाली, हस्तांतरण शुल्क नाही', en: 'Sold, no transfer fee' }, mr: 'IGR मध्ये विक्री नोंदली, पण CIDCO हस्तांतरण NOC / शुल्क नोंद नाही', en: 'Sale registered with IGR, but no CIDCO transfer NOC / charge on record' },
+  C2: { short: { mr: 'निवासी भूखंडावर व्यावसायिक वापर', en: 'Commercial use on residential plot' }, mr: 'निवासी वाटप, पण वीज व्यावसायिक दराने: परवानगीशिवाय वापर बदल', en: 'Allotted residential, but commercial power tariff: unapproved change of use' },
+  C3: { short: { mr: 'मंजूरपेक्षा जास्त बांधकाम', en: 'Built beyond permission' }, mr: 'OC मधील बांधकाम मंजूर बांधीव क्षेत्रापेक्षा १०% पेक्षा जास्त', en: 'Built-up area exceeds the permitted area by more than 10%' },
+  C4: { short: { mr: 'भाडेपट्टा / सेवा शुल्क थकबाकी', en: 'Lease / service charge arrears' }, mr: 'भाडेपट्टा भाडे किंवा सेवा शुल्क थकीत', en: 'Lease rent or service charges overdue' },
+  C5: { short: { mr: 'मुदतीत बांधकाम नाही', en: 'Not built within term' }, mr: 'वाटपानंतर मुदतीत बांधकाम / OC नाही: मुदतवाढ शुल्क', en: 'No construction / OC within the allotment term: extension fee' },
+}

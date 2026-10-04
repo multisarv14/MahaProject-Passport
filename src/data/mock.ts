@@ -255,3 +255,61 @@ export const DATA_SOURCES = [
   { id: 'igr', dept: { mr: 'नोंदणी व मुद्रांक (IGR)', en: 'Registration & Stamps (IGR)' }, file: 'igr_transactions_2023_2026.xlsx', records: PROPERTIES.filter(p => p.igr).length, last: '2026-09-15', quality: 79, status: 'warn' },
   { id: 'water', dept: { mr: 'पाणीपुरवठा: नळ जोडण्या', en: 'Water Supply: Connections' }, file: 'water_connections.csv', records: PROPERTIES.filter(p => p.water).length, last: '2026-08-31', quality: 72, status: 'warn' },
 ] as const
+
+// ---- CIDCO plot passport (proposed use; fictional plots in an invented node) ----
+export type CidcoFlag = 'C1' | 'C2' | 'C3' | 'C4' | 'C5'
+export interface CidcoPlot {
+  id: string
+  sector: number
+  plotNo: string
+  allottee: string
+  allottedUse: 'residential' | 'commercial' | 'institutional'
+  areaSqm: number
+  leaseFrom: string
+  permittedBua: number
+  builtBua: number | null
+  igrSale?: { docNo: string; date: string; buyer: string }
+  transferNoc?: string
+  elecCategory?: 'LT-I निवासी' | 'LT-II व्यावसायिक'
+  arrears: number
+  flags: CidcoFlag[]
+  estCharges: number
+}
+
+/** Transfer charge slab by plot area (illustrative; CIDCO's schedule ranges from ₹25,000 to ₹10 lakh). */
+export const cidcoTransferCharge = (sqm: number) => (sqm <= 50 ? 25000 : sqm <= 100 ? 150000 : sqm <= 200 ? 400000 : 1000000)
+
+function makeCidcoPlots(): CidcoPlot[] {
+  const out: CidcoPlot[] = []
+  for (let i = 1; i <= 96; i++) {
+    const sector = 1 + ((i - 1) % 12)
+    const r = rnd()
+    const allottedUse = r < 0.7 ? 'residential' : r < 0.9 ? 'commercial' : 'institutional'
+    const areaSqm = allottedUse === 'residential' ? between(40, 300) : between(80, 600)
+    const permittedBua = Math.round(areaSqm * (allottedUse === 'commercial' ? 1.5 : 1.0) * 10.764)
+    const built = rnd() < 0.88
+    const p: CidcoPlot = {
+      id: `CP-MH-NMN-2026-${pad(i, 5)}`,
+      sector, plotNo: `${between(1, 140)}`,
+      allottee: personName(), allottedUse, areaSqm,
+      leaseFrom: dateBack(between(800, 9000)),
+      permittedBua,
+      builtBua: built ? Math.round(permittedBua * (rnd() < 0.18 ? 1.15 + rnd() * 0.4 : 0.8 + rnd() * 0.2)) : null,
+      arrears: rnd() < 0.22 ? between(2, 40) * 5000 : 0,
+      flags: [], estCharges: 0,
+    }
+    if (rnd() < 0.3) {
+      p.igrSale = { docNo: `IGR/${between(2022, 2026)}/${pad(between(1, 99999), 5)}`, date: dateBack(between(20, 900)), buyer: personName() }
+      if (rnd() < 0.55) p.transferNoc = `CIDCO/EST/TR/${pad(between(1, 9999), 4)}`
+    }
+    if (built) p.elecCategory = allottedUse === 'residential' && rnd() < 0.14 ? 'LT-II व्यावसायिक' : allottedUse === 'residential' ? 'LT-I निवासी' : 'LT-II व्यावसायिक'
+    if (p.igrSale && !p.transferNoc) { p.flags.push('C1'); p.estCharges += cidcoTransferCharge(areaSqm) }
+    if (allottedUse === 'residential' && p.elecCategory === 'LT-II व्यावसायिक') { p.flags.push('C2'); p.estCharges += Math.round(areaSqm * 2500 / 100) * 100 }
+    if (p.builtBua && p.builtBua > permittedBua * 1.1) { p.flags.push('C3'); p.estCharges += Math.round((p.builtBua - permittedBua) * 450 / 100) * 100 }
+    if (p.arrears) { p.flags.push('C4'); p.estCharges += p.arrears }
+    if (!built && rnd() < 0.8) { p.flags.push('C5'); p.estCharges += Math.round(areaSqm * 300 / 100) * 100 }
+    out.push(p)
+  }
+  return out
+}
+export const CIDCO_PLOTS: CidcoPlot[] = makeCidcoPlots()

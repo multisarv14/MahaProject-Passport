@@ -17,6 +17,8 @@ import Resolved from './pages/Resolved'
 import { AreaSummary, DistrictDashboard, StateDashboard } from './pages/Leadership'
 import Business from './pages/Business'
 import Project from './pages/Project'
+import Cidco from './pages/Cidco'
+import UseModels from './pages/UseModels'
 import Reports from './pages/Reports'
 import Notifications from './pages/Notifications'
 import Audit from './pages/Audit'
@@ -83,6 +85,8 @@ export default function App() {
             <Route path="area" element={<AreaSummary />} />
             <Route path="business" element={<Business />} />
             <Route path="project" element={<Project />} />
+            <Route path="cidco" element={<Cidco />} />
+            <Route path="models" element={<UseModels />} />
             <Route path="reports" element={<Reports />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="audit" element={<Audit />} />

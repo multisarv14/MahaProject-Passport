@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3, Bell, Building2, ClipboardList, Database, FileSearch, Gavel, GitMerge, Landmark, LayoutDashboard,
-  LogOut, Map, Menu, BadgeCheck, ListTodo, ScrollText, Settings, ShieldCheck, Smartphone, Store, Users, Wallet, FileText,
+  LogOut, Map, Menu, BadgeCheck, ListTodo, LandPlot, Network, ScrollText, Settings, ShieldCheck, Smartphone, Store, Users, Wallet, FileText,
 } from 'lucide-react'
 import { useStore } from '../store/store'
 import { CITY } from '../data/mock'
@@ -54,6 +54,8 @@ export const NAV: Group[] = [
     mr: 'इतर Passport', en: 'Other Passports', items: [
       { to: '/business', mr: 'व्यवसाय Passport', en: 'Business Passport', icon: <Store size={17} />, roles: ['business_officer', 'commissioner', 'collector'] },
       { to: '/project', mr: 'प्रकल्प Passport', en: 'Project Passport', icon: <Building2 size={17} />, roles: ['commissioner', 'collector', 'state_lead'] },
+      { to: '/cidco', mr: 'CIDCO भूखंड Passport', en: 'CIDCO Plot Passport', icon: <LandPlot size={17} />, roles: ['commissioner', 'collector', 'state_lead'] },
+      { to: '/models', mr: 'MCGM व CIDCO मध्ये वापर', en: 'Use at MCGM & CIDCO', icon: <Network size={17} />, roles: ['commissioner', 'collector', 'state_lead'] },
     ],
   },
   {

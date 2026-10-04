@@ -29,6 +29,8 @@ export async function api<T>(path: string, init?: { method?: string; body?: unkn
   } catch {
     throw new ApiError(0, 'UNREACHABLE', UNREACHABLE)
   }
+  // Anything other than JSON (e.g. an HTML page from a misrouted proxy) means we did not reach the API.
+  if (!(res.headers.get('content-type') ?? '').includes('application/json')) throw new ApiError(res.status, 'UNREACHABLE', UNREACHABLE)
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     if (res.status === 401 && token) onUnauthorized()

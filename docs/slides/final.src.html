@@ -39,7 +39,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);line-hei
 .slide::before{content:"";position:absolute;inset:0 auto 0 0;width:.9cqw;background:var(--file)}
 .in{flex:1;display:flex;flex-direction:column;gap:1.7cqw;padding:3.4cqw 5cqw 1.3cqw 6cqw;min-height:0}
 .foot{display:flex;justify-content:space-between;gap:2cqw;padding:1.1cqw 5cqw 1.5cqw 6cqw;border-top:1px solid var(--rule);font-size:max(11px,1.15cqw);color:var(--muted)}
-.foot .pg::before{content:"पान " counter(pg,devanagari) " / ३०"}
+.foot .pg::before{content:"पान " counter(pg,devanagari) " / ३५"}
 .eyebrow{font:600 max(11px,1.2cqw)/1.2 var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--file)}
 h1,h2{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance;line-height:1.25}
 h1{font-size:max(30px,5.6cqw)}
@@ -427,6 +427,49 @@ body.present .hint{display:block}
   <div class="foot"><span>महा पासपोर्ट</span><span class="pg"></span></div>
 </section>
 
+<!-- MCGM -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">इतर संस्थांमध्ये वापर · बृहन्मुंबई महानगरपालिका</div>
+    <div class="shot">
+      <div class="txt">
+        <h2>MCGM: १% = ≈ ₹७६ कोटी दरवर्षी</h2>
+        <p>२०२५-२६ मध्ये ₹७,६१०.९० कोटी मालमत्ता कर वसुली. भांडवली मूल्य पद्धत: वापर बदलला (स्वतः वापर → भाड्याने → व्यावसायिक) की दर बदलतो.</p>
+        <ul class="clean small">
+          <li>वीज: BEST, Adani Electricity, Tata Power, MSEDCL: चार API keys</li>
+          <li>इमारत प्रस्ताव, SRA, पाणी: MCGM चे अंतर्गत विभाग</li>
+          <li>IGR (Leave &amp; License) आधीच MCGM शी जोडलेले</li>
+          <li>२ वॉर्ड pilot → सर्व वॉर्ड</li>
+        </ul>
+      </div>
+      <div><div class="screen"><img src="{{IMG:13-mcgm}}" alt="MCGM वापर"></div></div>
+    </div>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट</span><span class="pg"></span></div>
+</section>
+
+<!-- CIDCO -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">इतर संस्थांमध्ये वापर · CIDCO</div>
+    <div class="shot">
+      <div class="txt">
+        <h2>CIDCO: भूखंड Passport</h2>
+        <p>भाडेपट्ट्याच्या भूखंडांवर तेच engine: Estate नोंदी + IGR विक्री + वीज वापर + बांधकाम.</p>
+        <ul class="clean small">
+          <li><b>C1</b> विक्री झाली, हस्तांतरण शुल्क नाही (₹२५ हजार – ₹१० लाख)</li>
+          <li><b>C2</b> निवासी भूखंडावर व्यावसायिक वापर</li>
+          <li><b>C3</b> मंजूरपेक्षा जास्त बांधकाम</li>
+          <li><b>C4</b> भाडेपट्टा / सेवा शुल्क थकबाकी · <b>C5</b> मुदतीत बांधकाम नाही</li>
+        </ul>
+        <p class="small">एकाच data मधून CIDCO ला शुल्क आणि NMMC / पनवेल महानगरपालिकेला मालमत्ता कर.</p>
+      </div>
+      <div><div class="screen"><img src="{{IMG:12-cidco-plot}}" alt="CIDCO भूखंड"></div><p class="cap">Demo: काल्पनिक "नमुना नोड" मधील भूखंड; नियम व दर उदाहरणादाखल.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Demo data काल्पनिक</span><span class="pg"></span></div>
+</section>
+
 <!-- 18 -->
 <section class="slide">
   <div class="in">
@@ -486,23 +529,6 @@ body.present .hint{display:block}
   <div class="foot"><span>महा पासपोर्ट</span><span class="pg"></span></div>
 </section>
 
-<!-- 21 -->
-<section class="slide">
-  <div class="in">
-    <div class="eyebrow">व्यावसायिक मॉडेल</div>
-    <h2>शासनावर आगाऊ खर्चाचा भार कमी</h2>
-    <div class="grid g2">
-      <div class="box"><span class="chip c-file">Pilot</span><h3>निश्चित शुल्क, चार महिने</h3><p>प्रणाली, hosting, जुळवणी, प्रशिक्षण आणि अहवाल.</p></div>
-      <div class="box"><span class="chip c-info">वार्षिक</span><h3>प्रति शहर वार्षिक license</h3><p>शहराच्या आकारानुसार; देखभाल, अद्ययावतीकरण व सहाय्य समाविष्ट.</p></div>
-      <div class="box"><span class="chip c-ok">यश-आधारित</span><h3>वाढीव वसुलीवर ठरलेली टक्केवारी</h3><p>राज्यात आधीच वापरलेले मॉडेल (उदा. भिवंडी-निजामपूर tender). अंतिम निर्णय निविदेद्वारे.</p></div>
-      <div class="box"><span class="chip c-file">पुढील modules</span><h3>व्यवसाय व प्रकल्प Passport</h3><p>त्याच engine वर; विकासकांसाठी प्रति प्रकल्प शुल्क, शासनावर भार नाही.</p></div>
-    </div>
-    <div class="spacer"></div>
-    <p class="small">सर्व खरेदी शासनाच्या नियमानुसार (GeM / निविदा). रकमा स्वतंत्र व्यावसायिक प्रस्तावात.</p>
-  </div>
-  <div class="foot"><span>महा पासपोर्ट</span><span class="pg"></span></div>
-</section>
-
 <!-- 22 -->
 <section class="slide">
   <div class="in">
@@ -510,8 +536,8 @@ body.present .hint{display:block}
     <h2>एक engine, अनेक विभाग, संपूर्ण राज्य</h2>
     <div class="grid g3">
       <div class="box key"><span class="chip c-ok">वर्ष १</span><h3>मालमत्ता Passport · Pilot</h3><ul class="clean"><li>एक शहर, तीन विभाग</li><li>File व form द्वारे data</li><li>Pilot अहवाल</li></ul></div>
-      <div class="box"><span class="chip c-info">वर्ष २</span><h3>जिल्हा स्तर · व्यवसाय Passport</h3><ul class="clean"><li>५ ते १० शहरे</li><li>IGR, पाणी, महसूल विभाग</li><li>MSEDCL, IGR सोबत API</li><li>व्यवसाय कर, Shop Act, State GST संदर्भ यादी</li></ul></div>
-      <div class="box"><span class="chip c-file">वर्ष ३</span><h3>राज्यस्तर · प्रकल्प Passport</h3><ul class="clean"><li>सर्व नागरी संस्थांसाठी</li><li>MahaULB व ULPIN सोबत जोड</li><li>बांधकाम मंजुरींसाठी प्रकल्प Passport</li></ul></div>
+      <div class="box"><span class="chip c-info">वर्ष २</span><h3>जिल्हा स्तर · व्यवसाय Passport</h3><ul class="clean"><li>५ ते १० शहरे</li><li>IGR, पाणी, महसूल विभाग</li><li>MSEDCL, IGR सोबत API</li><li>व्यवसाय कर, Shop Act, State GST संदर्भ यादी</li><li>MCGM: २ वॉर्ड pilot; CIDCO: एक नोड</li></ul></div>
+      <div class="box"><span class="chip c-file">वर्ष ३</span><h3>राज्यस्तर · प्रकल्प Passport</h3><ul class="clean"><li>सर्व नागरी संस्थांसाठी</li><li>MahaULB व ULPIN सोबत जोड</li><li>बांधकाम मंजुरींसाठी प्रकल्प Passport</li><li>MCGM सर्व वॉर्ड; CIDCO सर्व नोड</li></ul></div>
     </div>
   </div>
   <div class="foot"><span>महा पासपोर्ट</span><span class="pg"></span></div>
@@ -546,7 +572,7 @@ body.present .hint{display:block}
     <div class="grid g2">
       <div class="box key"><h3>Data share आदेशातील मुद्दे</h3><ul class="clean">
         <li><b>विभाग:</b> महानगरपालिका (कर), नगररचना, MSEDCL</li>
-        <li><b>Format:</b> परिशिष्टातील columns (पान २८)</li>
+        <li><b>Format:</b> परिशिष्टातील columns (पान ३३)</li>
         <li><b>वारंवारता:</b> एकदा पूर्ण, नंतर आठवड्याला / रोज बदल</li>
         <li><b>मार्ग:</b> File किंवा महा पासपोर्ट API</li>
         <li><b>उद्देश मर्यादा व गोपनीयता:</b> फक्त कर उणिवा; DPDP</li>
@@ -580,6 +606,115 @@ body.present .hint{display:block}
   <div class="foot"><span>महा पासपोर्ट</span><span class="pg"></span></div>
 </section>
 
+<!-- गुंतवणूक -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">शासनासाठी गुंतवणूक व परतावा · उदाहरण</div>
+    <h2>प्रत्येक ₹१ खर्चामागे अनेक पट महसूल</h2>
+    <div class="grid g3">
+      <div class="box key"><span class="chip c-file">एक शहर · Pilot</span><h3>गुंतवणूक ₹४५–६० लाख</h3><p>१ लाख मालमत्तांच्या शहरात संभाव्य वाढ ≈ <b>₹५ कोटी / वर्ष</b> (पान २२ चे गृहीत उदाहरण), शिवाय मागील वर्षांची एकदाची वसुली.</p><p class="small">पहिल्याच वर्षी गुंतवणुकीच्या ≈ ८–१० पट.</p></div>
+      <div class="box"><span class="chip c-info">MCGM</span><h3>वार्षिक खर्च ₹३–५ कोटी</h3><p>फक्त १% सुधारणा = ≈ <b>₹७६ कोटी / वर्ष</b>.</p><p class="small">खर्चाच्या ≈ १५–२५ पट.</p></div>
+      <div class="box"><span class="chip c-ok">संपूर्ण राज्य · वर्ष ३</span><h3>एकूण खर्च ≈ ₹१०० कोटी / वर्ष</h3><p>वाढीव कर महसूल ≈ <b>₹५०० कोटी+ / वर्ष</b> (सर्व संस्था मिळून, गृहीत).</p><p class="small">प्रत्येक ₹१ मागे ≈ ₹५; शिवाय एकदाची थकबाकी वसुली.</p></div>
+    </div>
+    <div class="spacer"></div>
+    <p class="lead">वाढलेला कर दरवर्षी मिळत राहतो; खर्च सेवेच्या स्वरूपात, आणि यश-शुल्क फक्त प्रत्यक्ष वसुलीवर.</p>
+    <p class="small">सर्व आकडे गृहीत व उदाहरणादाखल; खरे आकडे Pilot नंतर निश्चित होतील.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट</span><span class="pg"></span></div>
+</section>
+
+<!-- विकास खर्च -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">Platform विकास खर्च · अंदाजे</div>
+    <h2>किती खर्च, कशासाठी</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>घटक</th><th>काय समाविष्ट</th><th>अंदाजे खर्च</th></tr></thead>
+      <tbody>
+        <tr><td><b>मूळ प्रणाली</b></td><td>सध्याची प्रणाली: जुळवणी, पाहणी, नोटीस, हरकत, वसुली, dashboards, API, सुरक्षा</td><td><span class="chip c-ok">MultiSarv ने विकसित</span></td></tr>
+        <tr><td><b>Pilot: एक शहर, ४ महिने</b></td><td>शहरानुसार बदल, data onboarding, hosting, प्रशिक्षण, क्षेत्रीय सहाय्य, अहवाल</td><td>₹४५–६० लाख (एकदा)</td></tr>
+        <tr><td><b>राज्यस्तर production तयारी</b></td><td>CERT-In audit, SMS gateway, mobile app, MahaULB / ULPIN जोड, DR site, मोठ्या शहरांसाठी वेग</td><td>₹१.५–२.५ कोटी (एकदा)</td></tr>
+        <tr><td><b>नवीन शहर जोडणी</b></td><td>Data onboarding, नियम जुळवणी, प्रशिक्षण</td><td>₹५–२५ लाख प्रति शहर</td></tr>
+        <tr><td><b>MCGM अनुकूलन</b></td><td>चार वीज कंपन्या, भांडवली मूल्य पद्धत, वॉर्डनिहाय rollout</td><td>₹१–१.५ कोटी (एकदा)</td></tr>
+        <tr><td><b>CIDCO भूखंड module</b></td><td>भाडेपट्टा, हस्तांतरण, वापरबदल नियम; Estate विभाग जोड</td><td>₹७०–९० लाख (एकदा)</td></tr>
+        <tr><td><b>Hosting</b></td><td>राज्य Data Center / MeitY-empanelled cloud; backup</td><td>₹१०–४० लाख / वर्ष</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">सर्व रकमा अंदाजे, GST वगळून; अंतिम रकमा व्यावसायिक प्रस्तावात आणि निविदा प्रक्रियेनुसार.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट</span><span class="pg"></span></div>
+</section>
+
+<!-- support -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">Support व देखभाल</div>
+    <h2>प्रणाली चालू ठेवण्याची जबाबदारी आमची</h2>
+    <div class="grid g2">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>स्तर</th><th>काय</th></tr></thead>
+        <tbody>
+          <tr><td><b>L1 · Helpdesk</b></td><td>मराठीत; phone, WhatsApp, email; कार्यालयीन वेळेत</td></tr>
+          <tr><td><b>L2 · तांत्रिक</b></td><td>Data upload, जुळवणी, users व अधिकार</td></tr>
+          <tr><td><b>L3 · विकास</b></td><td>दोष दुरुस्ती, नियम बदल, नवीन आवृत्ती</td></tr>
+          <tr><td><b>Pilot काळात</b></td><td>शहरात २–३ क्षेत्रीय समन्वयक</td></tr>
+        </tbody>
+      </table></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>सेवा पातळी (SLA)</th><th>प्रतिसाद</th></tr></thead>
+        <tbody>
+          <tr><td>गंभीर: प्रणाली बंद</td><td>४ तास</td></tr>
+          <tr><td>उच्च: काम अडले</td><td>१ कार्यालयीन दिवस</td></tr>
+          <tr><td>सामान्य</td><td>३ कार्यालयीन दिवस</td></tr>
+          <tr><td>उपलब्धता</td><td>९९.५% (महिन्याला)</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="grid g3">
+      <div class="box"><h3>दरमहा</h3><p>सुरक्षा patches, backup तपासणी, वापर व SLA अहवाल</p></div>
+      <div class="box"><h3>दरवर्षी</h3><p>सुरक्षा audit, restore चाचणी, प्रशिक्षण उजळणी</p></div>
+      <div class="box"><h3>खर्च</h3><p>वार्षिक license मध्ये समाविष्ट; स्वतंत्र AMC असल्यास विकास खर्चाच्या १५–२०% / वर्ष</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट</span><span class="pg"></span></div>
+</section>
+
+<!-- MultiSarv उत्पन्न -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">MultiSarv चे उत्पन्न · पारदर्शक मॉडेल</div>
+    <h2>शासनाला फायदा झाला तरच यश-शुल्क</h2>
+    <div class="grid g2">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>उत्पन्न स्रोत</th><th>दर (अंदाजे)</th></tr></thead>
+        <tbody>
+          <tr><td>वार्षिक license: महानगरपालिका</td><td>₹७५ लाख – ₹१.५ कोटी</td></tr>
+          <tr><td>वार्षिक license: नगरपरिषद / नगरपंचायत</td><td>₹८–१५ लाख</td></tr>
+          <tr><td>वार्षिक license: MCGM / CIDCO</td><td>₹३–५ कोटी</td></tr>
+          <tr><td>यश-शुल्क: वाढीव वसुलीवर</td><td>३–५% (निविदेनुसार)</td></tr>
+          <tr><td>Onboarding व support</td><td>प्रति शहर / AMC</td></tr>
+          <tr><td>पुढील modules</td><td>व्यवसाय, प्रकल्प Passport (विकासक शुल्क)</td></tr>
+        </tbody>
+      </table></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>संपूर्ण राज्य · वर्ष ३ (उदाहरण)</th><th>₹ कोटी / वर्ष</th></tr></thead>
+        <tbody>
+          <tr><td>MCGM + CIDCO license</td><td>≈ ८</td></tr>
+          <tr><td>इतर २८ महानगरपालिका</td><td>≈ २८</td></tr>
+          <tr><td>सुमारे ३९० नगरपरिषद / नगरपंचायत</td><td>≈ ३९</td></tr>
+          <tr><td>यश-शुल्क (≈ ₹५०० कोटी वाढीव वसुलीवर ४%)</td><td>≈ २०</td></tr>
+          <tr><td>Onboarding, support, modules</td><td>≈ ८–१०</td></tr>
+          <tr><td><b>एकूण</b></td><td><b>≈ १०० +</b></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="spacer"></div>
+    <p class="lead">MultiSarv चे उत्पन्न ≈ शासनाच्या वाढीव महसुलाच्या पाचव्या भागाइतके; उर्वरित सर्व शहरांच्या विकासासाठी.</p>
+    <p class="small">सर्व आकडे अंदाजे व उदाहरणादाखल, GST वगळून; खरेदी GeM / निविदा प्रक्रियेनुसार.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट</span><span class="pg"></span></div>
+</section>
+
 <!-- 26 -->
 <section class="slide title">
   <div class="in">
@@ -595,7 +730,7 @@ body.present .hint{display:block}
 <section class="slide">
   <div class="in">
     <div class="eyebrow">परिशिष्ट · Live demo क्रम</div>
-    <h2>दहा मिनिटांचा demo</h2>
+    <h2>बारा मिनिटांचा demo</h2>
     <div class="tbl-wrap"><table>
       <thead><tr><th>#</th><th>भूमिका</th><th>दाखवायचे</th><th>सांगायचे</th></tr></thead>
       <tbody>
@@ -607,7 +742,8 @@ body.present .hint{display:block}
         <tr><td>६</td><td>कर निर्धारण अधिकारी</td><td>मंजुरी → नोटीस</td><td>मराठी नोटीस; SMS / WhatsApp</td></tr>
         <tr><td>७</td><td>नागरिक → सुनावणी अधिकारी</td><td>हरकत → निर्णय</td><td>नागरिकाला न्याय्य संधी</td></tr>
         <tr><td>८</td><td>वसुली लिपिक → आयुक्त</td><td>भरणा → निकाली प्रकरणे</td><td>एकदाची वसुली + दरवर्षी वाढ</td></tr>
-        <tr><td>९</td><td>Platform Admin</td><td>Users, API keys</td><td>MultiSarv ला शासनाचा data दिसत नाही</td></tr>
+        <tr><td>९</td><td>आयुक्त</td><td>MCGM व CIDCO मध्ये वापर; CIDCO भूखंड</td><td>तेच engine मोठ्या संस्थांसाठी</td></tr>
+        <tr><td>१०</td><td>Platform Admin</td><td>Users, API keys</td><td>MultiSarv ला शासनाचा data दिसत नाही</td></tr>
       </tbody>
     </table></div>
   </div>
@@ -646,7 +782,7 @@ body.present .hint{display:block}
       <div class="box"><h3>"विभाग data देतील का?"</h3><p>File पुरेशी; पुणे–MSEDCL आणि IGR ची देवाणघेवाण ही उदाहरणे आहेत. आदेश आवश्यक.</p></div>
       <div class="box"><h3>"चुकीची नोटीस गेली तर?"</h3><p>पाहणी व मंजुरीशिवाय नोटीस नाही; हरकत व सुनावणीचा मार्ग प्रणालीत.</p></div>
       <div class="box"><h3>"Data सुरक्षित आहे का?"</h3><p>भारतात hosting, audit, DPDP; MultiSarv च्या admin ला देखील data दिसत नाही.</p></div>
-      <div class="box"><h3>"GST चे काय?"</h3><p>GSTN कडे स्वतःची analytics आहे; आम्ही फक्त स्थानिक पाहणीवर आधारित संदर्भ यादी देऊ शकतो.</p></div>
+      <div class="box"><h3>"खर्च आणि परतावा?"</h3><p>Pilot ₹४५–६० लाख; राज्यस्तरावर प्रत्येक ₹१ खर्चामागे ≈ ₹५ वाढीव महसूल (पाने २७–३०).</p></div>
     </div>
   </div>
   <div class="foot"><span>महा पासपोर्ट</span><span class="pg"></span></div>
@@ -664,6 +800,8 @@ body.present .hint{display:block}
       <li>Geospatial World: पुणे GIS मालमत्ता मॅपिंग · पनवेल महानगरपालिका मालमत्ता कर विभाग · भिवंडी-निजामपूर GIS सर्वेक्षण tender</li>
       <li>MahaULB (mahaulb.in) · ULPIN महाराष्ट्र स्थिती · महाभूमी · MahaRERA प्रकल्प शोध</li>
       <li>समग्र वेदिका: Al Jazeera (2024), Amnesty International (2024), Oxford Human Rights Hub</li>
+      <li>Angel One: BMC records highest-ever ₹7,610.90 crore property tax collection in FY26 · मुंबईतील वीज वितरक: BEST, Adani Electricity, Tata Power, MSEDCL</li>
+      <li>Newsband / Mumbaikar News: CIDCO हस्तांतरण शुल्क (₹२५,००० – ₹१० लाख; २०२३-२४ मध्ये ₹१२८ कोटी अपेक्षित)</li>
     </ul>
     <div class="spacer"></div>
     <p class="small">Screens प्रत्यक्ष प्रणालीतील; शहर, व्यक्ती व आकडे काल्पनिक. "API आढळला नाही" = सार्वजनिक माहितीत आढळला नाही; विभागांच्या नोडल अधिकाऱ्यांशी खात्री करावी.</p>
