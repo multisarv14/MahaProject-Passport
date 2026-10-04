@@ -1,0 +1,355 @@
+<title>महा पासपोर्ट Data जोडणी</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Marathi&family=Mukta:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a government "nasti" (file) — 16:9 slides stacked like numbered file pages ("पान"), with a present mode. */
+:root{
+  --paper:#EEF0F4; --sheet:#FFFFFF; --ink:#1B2340; --muted:#5A6177; --rule:#D8DCE6;
+  --file:#B98E3E; --file-soft:#F4EAD6; --tape:#B3261E; --tape-soft:#FBE7E5;
+  --ok:#2E7D4F; --ok-soft:#E3F2E8; --info:#2F5DA8; --info-soft:#E6EDF8; --warn:#A86400; --warn-soft:#FDF0D9;
+  --f-display:"Tiro Devanagari Marathi","Noto Serif Devanagari",Georgia,serif;
+  --f-body:"Mukta","Noto Sans Devanagari",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media screen and (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#0D111C;--sheet:#161B2B;--ink:#E6E8F0;--muted:#9AA1B7;--rule:#2A3150;
+    --file:#D6B46E;--file-soft:#2E2718;--tape:#EA6259;--tape-soft:#3A1D1C;
+    --ok:#62BE88;--ok-soft:#16301F;--info:#7FA4E6;--info-soft:#18233A;--warn:#E0A64B;--warn-soft:#33270F;
+  }
+}
+@media screen{
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --paper:#0D111C;--sheet:#161B2B;--ink:#E6E8F0;--muted:#9AA1B7;--rule:#2A3150;
+    --file:#D6B46E;--file-soft:#2E2718;--tape:#EA6259;--tape-soft:#3A1D1C;
+    --ok:#62BE88;--ok-soft:#16301F;--info:#7FA4E6;--info-soft:#18233A;--warn:#E0A64B;--warn-soft:#33270F;
+  }
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);line-height:1.5;padding:0 16px;counter-reset:pg}
+.bar{max-width:1120px;margin:0 auto;padding-block:20px 8px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.bar p{margin:0;color:var(--muted);font-size:14px}
+.btn{font:600 15px var(--f-body);background:var(--ink);color:var(--sheet);border:0;border-radius:6px;padding:9px 16px;cursor:pointer}
+.btn:focus-visible{outline:3px solid var(--file);outline-offset:2px}
+.deck{max-width:1120px;margin:0 auto;padding-block:8px 48px;display:flex;flex-direction:column;gap:28px}
+.slide{counter-increment:pg;container-type:inline-size;position:relative;background:var(--sheet);border:1px solid var(--rule);border-radius:4px;aspect-ratio:16/9;display:flex;flex-direction:column}
+.slide::before{content:"";position:absolute;inset:0 auto 0 0;width:.9cqw;background:var(--file)}
+.in{flex:1;display:flex;flex-direction:column;gap:1.8cqw;padding:3.6cqw 5cqw 1.4cqw 6cqw;min-height:0}
+.foot{display:flex;justify-content:space-between;gap:2cqw;padding:1.1cqw 5cqw 1.5cqw 6cqw;border-top:1px solid var(--rule);font-size:max(11px,1.15cqw);color:var(--muted)}
+.foot .pg::before{content:"पान " counter(pg,devanagari) " / १२"}
+.eyebrow{font:600 max(11px,1.2cqw)/1.2 var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--file)}
+h1,h2{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance;line-height:1.25}
+h1{font-size:max(30px,5.4cqw)}
+h2{font-size:max(22px,3.2cqw)}
+h3{font:700 max(15px,1.7cqw)/1.3 var(--f-body);margin:0}
+p,li{font-size:max(14px,1.6cqw);margin:0}
+.lead{font-size:max(16px,2cqw);color:var(--muted);max-width:62ch}
+.small{font-size:max(12px,1.25cqw);color:var(--muted)}
+.mono{font-family:var(--f-mono)}
+ul.clean{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.8cqw}
+ul.clean li{padding-left:1.8cqw;position:relative}
+ul.clean li::before{content:"";position:absolute;left:0;top:.75em;width:.8cqw;height:2px;background:var(--file)}
+.grid{display:grid;gap:1.6cqw}
+.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.box{border:1px solid var(--rule);border-radius:4px;padding:1.5cqw;display:flex;flex-direction:column;gap:.6cqw}
+.box p,.box li{font-size:max(13px,1.45cqw)}
+.box.key{border:2px solid var(--ink)}
+.chip{display:inline-block;font:600 max(11px,1.15cqw)/1 var(--f-body);padding:.5cqw .9cqw;border-radius:3px;align-self:flex-start;white-space:nowrap}
+.c-ok{background:var(--ok-soft);color:var(--ok)}.c-bad{background:var(--tape-soft);color:var(--tape)}.c-info{background:var(--info-soft);color:var(--info)}.c-file{background:var(--file-soft);color:var(--file)}.c-warn{background:var(--warn-soft);color:var(--warn)}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:max(12px,1.35cqw)}
+th,td{text-align:left;padding:.65cqw .9cqw;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-weight:700;color:var(--muted);font-size:max(11px,1.2cqw)}
+.spacer{flex:1}
+.title .in{justify-content:center;gap:2.2cqw}
+.stamp{position:absolute;right:6cqw;top:6cqw;border:2px solid var(--tape);color:var(--tape);font:700 max(11px,1.3cqw)/1.3 var(--f-body);padding:.8cqw 1.4cqw;transform:rotate(-6deg);text-align:center;border-radius:3px}
+.flow{display:grid;grid-template-columns:repeat(6,1fr);gap:1cqw;counter-reset:st}
+.st{counter-increment:st;border:1px solid var(--rule);border-radius:4px;padding:1.1cqw;display:flex;flex-direction:column;gap:.5cqw}
+.st::before{content:counter(st,devanagari);font:400 max(18px,2.5cqw)/1 var(--f-display);color:var(--file)}
+.st p{font-size:max(12px,1.3cqw)}
+.st.key{border:2px solid var(--ink)}
+.tl{display:grid;grid-template-columns:repeat(3,1fr);border-top:2px solid var(--ink)}
+.tl > div{padding:1.4cqw 1.6cqw 0 0;display:flex;flex-direction:column;gap:.6cqw}
+.tl .when{font:700 max(12px,1.3cqw) var(--f-body);color:var(--file)}
+.code{font-family:var(--f-mono);font-size:max(11px,1.15cqw);background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:1cqw 1.2cqw;white-space:pre;overflow-x:auto;line-height:1.45}
+body.present{overflow:hidden;background:#000}
+body.present .bar{display:none}
+body.present .deck{position:fixed;inset:0;max-width:none;padding:0;display:grid;place-items:center}
+body.present .slide{display:none;width:min(100vw,177.78vh);border:0;border-radius:0}
+body.present .slide.on{display:flex}
+.hint{position:fixed;bottom:calc(10px + env(safe-area-inset-bottom,0px));right:14px;color:#888;font-size:12px;display:none}
+body.present .hint{display:block}
+@media (max-width:760px){
+  .slide{aspect-ratio:auto}
+  .g3,.g4,.flow,.tl{grid-template-columns:1fr 1fr}
+  .stamp{position:static;transform:none;align-self:flex-start}
+}
+@media (max-width:460px){ .g2,.g3,.g4,.flow,.tl{grid-template-columns:1fr} }
+@page{size:1280px 720px;margin:0}
+@media print{
+  html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .bar,.hint{display:none}
+  .deck{max-width:none;padding:0;gap:0;display:block}
+  .slide{width:1280px;height:720px;aspect-ratio:auto;border:0;border-radius:0;break-after:page;overflow:hidden}
+  .slide:last-of-type{break-after:auto}
+}
+</style>
+
+<div class="bar">
+  <p>MultiSarv Pvt. Ltd. · महा पासपोर्ट · विभागांचा data जोडणी आराखडा</p>
+  <button class="btn" id="present" type="button">सादरीकरण सुरू करा ▸</button>
+</div>
+
+<main class="deck" id="deck">
+
+<!-- 1 -->
+<section class="slide title">
+  <div class="in">
+    <div class="stamp">चर्चेसाठी मसुदा</div>
+    <div class="eyebrow">महा पासपोर्ट · Data जोडणी आराखडा</div>
+    <h1>विभागांचा data<br>कसा मिळेल</h1>
+    <p class="lead">कोणत्या विभागाकडून कोणता data लागतो, आज काय उपलब्ध आहे, आणि तो सुरक्षितपणे व आपोआप मिळवण्याचा टप्प्याटप्प्याचा मार्ग.</p>
+    <p class="small">MultiSarv Pvt. Ltd. · ऑक्टोबर २०२६</p>
+  </div>
+  <div class="foot"><span>MultiSarv Pvt. Ltd.</span><span class="pg"></span></div>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">कोणता data लागतो</div>
+    <h2>पाच विभाग; Pilot साठी तीन पुरेसे</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>विभाग</th><th>Data</th><th>त्यातून काय कळते</th><th>टप्पा</th></tr></thead>
+      <tbody>
+        <tr><td><b>महानगरपालिका / नगरपरिषद</b></td><td>मालमत्ता कर नोंदवही</td><td>कोणत्या मालमत्तेवर किती कर आकारला जातो</td><td><span class="chip c-ok">Pilot</span></td></tr>
+        <tr><td><b>नगररचना विभाग</b></td><td>बांधकाम परवानगी, भोगवटा प्रमाणपत्र (OC)</td><td>नवीन व वाढीव बांधकाम</td><td><span class="chip c-ok">Pilot</span></td></tr>
+        <tr><td><b>MSEDCL</b></td><td>वीज जोडण्या व दर प्रकार</td><td>मालमत्ता वापरात आहे का; निवासी की व्यावसायिक</td><td><span class="chip c-ok">Pilot</span></td></tr>
+        <tr><td><b>नोंदणी व मुद्रांक (IGR)</b></td><td>खरेदी-विक्री नोंदणी</td><td>मालक बदलला का</td><td><span class="chip c-info">दुसरा टप्पा</span></td></tr>
+        <tr><td><b>पाणीपुरवठा</b></td><td>नळ जोडण्या</td><td>मालमत्ता वापरात आहे का</td><td><span class="chip c-info">दुसरा टप्पा</span></td></tr>
+      </tbody>
+    </table></div>
+    <div class="spacer"></div>
+    <p class="small">प्रत्येक विभागाचे नेमके columns या सादरीकरणाच्या पान १० वर आणि "data मागणी परिशिष्ट" मध्ये दिले आहेत.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Data जोडणी</span><span class="pg"></span></div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">आजची स्थिती</div>
+    <h2>तयार API आहेत का?</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>विभाग</th><th>सार्वजनिक API</th><th>आज काय उपलब्ध आहे</th></tr></thead>
+      <tbody>
+        <tr><td><b>MSEDCL</b></td><td><span class="chip c-bad">आढळला नाही</span></td><td>ग्राहकांच्या माहितीसाठी सार्वजनिक API नाही; विशिष्ट माहिती अधिकृत विनंतीवर दिल्याचे उदाहरण आहे (पान ४)</td></tr>
+        <tr><td><b>IGR</b></td><td><span class="chip c-warn">मर्यादित</span></td><td>API Setu वर फक्त नागरिकाच्या DigiLocker मध्ये Leave &amp; License प्रमाणपत्र; सर्व नोंदींचा API नाही. eSearch वर एक-एक व्यवहार शोध.</td></tr>
+        <tr><td><b>भूमी अभिलेख</b></td><td><span class="chip c-bad">आढळला नाही</span></td><td>महाभूमी portal वर एक-एक उतारा</td></tr>
+        <tr><td><b>MahaRERA</b></td><td><span class="chip c-bad">आढळला नाही</span></td><td>सार्वजनिक प्रकल्प शोध portal</td></tr>
+        <tr><td><b>मालमत्ता कर</b></td><td><span class="chip c-warn">शहरनिहाय</span></td><td>प्रत्येक शहराचे स्वतःचे software / MahaULB; Excel export शक्य</td></tr>
+      </tbody>
+    </table></div>
+    <div class="spacer"></div>
+    <p class="lead">निष्कर्ष: bulk data चा तयार API नाही. Data <b>शासन आदेशाने</b> मिळतो, आणि त्याचे मार्ग आपल्या प्रणालीत तयार आहेत.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Data जोडणी</span><span class="pg"></span></div>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">हे आधी झाले आहे</div>
+    <h2>विभागांमध्ये data देवाणघेवाण नवीन नाही</h2>
+    <div class="grid g3">
+      <div class="box key"><span class="chip c-ok">महाराष्ट्र</span><h3>पुणे महानगरपालिका + MSEDCL</h3><p>निवासी वीज जोडणीवर व्यावसायिक वापर करणाऱ्यांची माहिती MSEDCL कडून घेऊन मालमत्ता कर चुकवणाऱ्यांचा शोध.</p></div>
+      <div class="box"><span class="chip c-ok">महाराष्ट्र</span><h3>IGR + MCGM, Income Tax, भूमी अभिलेख</h3><p>नोंदणी विभागाच्या प्रणाली नोंदणीवेळी या विभागांशी आधीच data देवाणघेवाण करतात.</p></div>
+      <div class="box"><span class="chip c-info">कर्नाटक</span><h3>बेंगळुरू BBMP + BESCOM</h3><p>६७ लाख वीज जोडण्यांची कर नोंदींशी जुळवणी; १२,००३ मालमत्तांमध्ये ₹१३१ कोटी थकीत कर.</p></div>
+    </div>
+    <div class="spacer"></div>
+    <p class="lead">आम्ही नवीन काही मागत नाही. हीच देवाणघेवाण सर्व शहरांसाठी नियमित, नोंदवलेली आणि सुरक्षित करतो.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Data जोडणी</span><span class="pg"></span></div>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">Data येण्याचे तीन मार्ग · प्रणालीत तयार</div>
+    <h2>प्रत्येक विभागाच्या क्षमतेनुसार मार्ग</h2>
+    <div class="grid g3">
+      <div class="box"><span class="chip c-file">१ · File</span><h3>Excel / CSV upload</h3><ul class="clean"><li>पहिल्या दिवसापासून शक्य</li><li>Columns आपोआप ओळखले जातात (मराठी / English)</li><li>प्रत्येक ओळ तपासली जाते; चुकीच्या ओळी कारणासह</li></ul></div>
+      <div class="box"><span class="chip c-info">२ · Form</span><h3>एक-एक नोंद हाताने</h3><ul class="clean"><li>लहान कार्यालये, दुरुस्त्या</li><li>File सारखीच तपासणी</li><li>Data Officer फक्त स्वतःच्या विभागाची नोंद</li></ul></div>
+      <div class="box key"><span class="chip c-ok">३ · API</span><h3>विभागाची system आपोआप पाठवते</h3><ul class="clean"><li>रोज / दर तासाला, माणसाशिवाय</li><li>एका वेळी ५,००० नोंदी</li><li>बदललेल्या नोंदी लगेच प्रकरणात</li></ul></div>
+    </div>
+    <div class="spacer"></div>
+    <p class="small">तिन्ही मार्ग एकाच तपासणी व जुळवणीतून जातात. प्रत्येक नोंदीवर ती कशी आली (File / Form / API) आणि कोणी पाठवली ते दिसते.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Data जोडणी</span><span class="pg"></span></div>
+</section>
+
+<!-- 6 -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">API कसा चालतो</div>
+    <h2>विभागाच्या system पासून प्रकरणापर्यंत</h2>
+    <div class="flow">
+      <div class="st"><h3>Key दिली जाते</h3><p>Admin प्रत्येक विभागासाठी स्वतंत्र गुप्त key तयार करतो</p></div>
+      <div class="st"><h3>विभाग पाठवतो</h3><p>नवीन व बदललेल्या नोंदी, ठरलेल्या वेळी</p></div>
+      <div class="st key"><h3>तपासणी</h3><p>प्रत्येक नोंद; चुकीची कारणासह परत</p></div>
+      <div class="st key"><h3>जुळवणी</h3><p>मराठी / English पत्ते, घर क्रमांक, नाव</p></div>
+      <div class="st"><h3>प्रकरण</h3><p>उणीव आढळल्यास नवीन; बदल झाल्यास अद्ययावत</p></div>
+      <div class="st"><h3>अधिकारी</h3><p>प्रत्यक्ष पाहणी व मंजुरीनंतरच नोटीस</p></div>
+    </div>
+    <div class="code">POST /api/v1/records/elec          X-API-Key: mp_live_••••••••
+{ "records": [ { "consumerNo": "410123456789", "address": "H.No. 64, School Road, Station Area",
+                 "category": "LT-II Commercial", "since": "2026-09-20" } ] }
+→ { "accepted": 1, "rejected": 0, "errors": [] }</div>
+    <p class="small">विभागाच्या IT साठी संपूर्ण तांत्रिक माहिती: "Department Data API" दस्तऐवज.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Data जोडणी</span><span class="pg"></span></div>
+</section>
+
+<!-- 7 -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">सुरक्षा</div>
+    <h2>Data फक्त येतो; बाहेर जात नाही</h2>
+    <div class="grid g3">
+      <div class="box"><h3>एक विभाग, एक key</h3><p>MSEDCL ची key फक्त MSEDCL चाच data पाठवू शकते.</p></div>
+      <div class="box"><h3>फक्त पाठवणे</h3><p>Key ने कोणताही data वाचता येत नाही.</p></div>
+      <div class="box"><h3>Key सुरक्षित</h3><p>फक्त एकदाच दिसते; database मध्ये फक्त तिचे hash. एका click ने रद्द.</p></div>
+      <div class="box"><h3>प्रत्येक call नोंदवला</h3><p>कोणत्या system ने, कधी, किती नोंदी: बदलता न येणाऱ्या audit log मध्ये.</p></div>
+      <div class="box"><h3>MultiSarv ला data दिसत नाही</h3><p>Platform Admin फक्त users व प्रणाली सांभाळतो; मालमत्ता, प्रकरणे, नागरिकांची माहिती API पातळीवर बंद.</p></div>
+      <div class="box"><h3>भारतात, कायद्यानुसार</h3><p>भारतातील server, HTTPS, DPDP कायदा २०२३, CERT-In audit.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Data जोडणी</span><span class="pg"></span></div>
+</section>
+
+<!-- 8 -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">टप्प्याटप्प्याने</div>
+    <h2>File पासून पूर्ण automation पर्यंत</h2>
+    <div class="tl">
+      <div><span class="when">टप्पा १ · Pilot सुरुवात</span><h3>File</h3><p class="small">मालमत्ता कर, OC आणि MSEDCL कडून एकदा पूर्ण file. पहिली जुळवणी व पहिली प्रकरणे.</p></div>
+      <div><span class="when">टप्पा २ · पहिले ३ महिने</span><h3>नियमित file</h3><p class="small">दर आठवड्याला / रोज बदललेल्या नोंदींची file. ज्या विभागांना API शक्य नाही त्यांच्यासाठी कायमचा मार्ग.</p></div>
+      <div><span class="when">टप्पा ३ · विस्तार</span><h3>API</h3><p class="small">MSEDCL, IGR सारख्या मोठ्या IT असलेल्या विभागांकडून थेट API push. नवीन शहरांसाठी तीच पद्धत.</p></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="grid g2">
+      <div class="box"><h3>विभागाला काय करावे लागते</h3><p>फक्त ठरलेल्या format मध्ये data देणे. स्वतःची प्रणाली बदलावी लागत नाही.</p></div>
+      <div class="box"><h3>आम्ही काय करतो</h3><p>Format, तपासणी, जुळवणी, सुरक्षा, आणि विभागाच्या IT ला तांत्रिक मदत.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Data जोडणी</span><span class="pg"></span></div>
+</section>
+
+<!-- 9 -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">शासन आदेशात काय असावे</div>
+    <h2>Data share आदेशातील मुद्दे (प्रस्तावित)</h2>
+    <div class="grid g2">
+      <ul class="clean">
+        <li><b>कोणते विभाग:</b> महानगरपालिका (मालमत्ता कर), नगररचना, MSEDCL; पुढे IGR, पाणीपुरवठा</li>
+        <li><b>कोणते शहर:</b> Pilot महानगरपालिका / नगरपरिषद</li>
+        <li><b>Format:</b> परिशिष्टातील columns (पान १०)</li>
+        <li><b>वारंवारता:</b> सुरुवातीला एकदा पूर्ण, नंतर दर आठवड्याला / रोज बदल</li>
+      </ul>
+      <ul class="clean">
+        <li><b>मार्ग:</b> File, किंवा महा पासपोर्ट API वर push</li>
+        <li><b>नोडल अधिकारी:</b> प्रत्येक विभागातून एक</li>
+        <li><b>उद्देश मर्यादा:</b> फक्त मालमत्ता कर आकारणीतील उणिवा शोधणे</li>
+        <li><b>गोपनीयता:</b> DPDP कायदा, भारतात साठवण, audit, pilot नंतर आढावा</li>
+      </ul>
+    </div>
+    <div class="spacer"></div>
+    <p class="lead">एक आदेश, तीन विभाग: एवढ्याने Pilot सुरू होतो.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Data जोडणी</span><span class="pg"></span></div>
+</section>
+
+<!-- 10 -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">परिशिष्ट · आवश्यक columns</div>
+    <h2>विभागनिहाय data format</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>विभाग</th><th>अनिवार्य</th><th>इतर</th></tr></thead>
+      <tbody>
+        <tr><td><b>मालमत्ता कर</b></td><td>कर क्रमांक, मालकाचे नाव, पत्ता, वापर, आकारलेले क्षेत्रफळ</td><td>प्रभाग, वार्षिक कर, शेवटचा भरणा, थकबाकी</td></tr>
+        <tr><td><b>नगररचना (OC)</b></td><td>OC क्रमांक, दिनांक, जागेचा पत्ता, बांधीव क्षेत्रफळ</td><td>प्रभाग, अर्जदार, सदनिका / गाळे</td></tr>
+        <tr><td><b>MSEDCL</b></td><td>ग्राहक क्रमांक, जागेचा पत्ता, दर प्रकार</td><td>नाव, प्रभाग, जोडणी दिनांक, सरासरी युनिट</td></tr>
+        <tr><td><b>IGR</b></td><td>दस्त क्रमांक, नोंदणी दिनांक, खरेदीदार, मालमत्तेचा पत्ता</td><td>विक्रेता</td></tr>
+        <tr><td><b>पाणीपुरवठा</b></td><td>जोडणी क्रमांक, पत्ता</td><td>नाव, प्रभाग, जोडणी दिनांक</td></tr>
+      </tbody>
+    </table></div>
+    <div class="spacer"></div>
+    <p class="small">Column ची नावे मराठी किंवा English. दिनांक दिवस-महिना-वर्ष. पत्ता शक्य तितका पूर्ण: घर / गाळा क्रमांक, रस्ता, परिसर, प्रभाग.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Data जोडणी</span><span class="pg"></span></div>
+</section>
+
+<!-- 11 -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">पुढील पावले</div>
+    <h2>आदेशापासून पहिल्या निकालापर्यंत</h2>
+    <div class="grid g4">
+      <div class="box"><span class="chip c-file">आठवडा १</span><h3>आदेश</h3><p>Data share आदेश, नोडल अधिकारी, pilot शहर निश्चित</p></div>
+      <div class="box"><span class="chip c-file">आठवडा २</span><h3>पहिली file</h3><p>कर, OC, MSEDCL कडून पूर्ण data; प्रणालीत तपासणी</p></div>
+      <div class="box"><span class="chip c-file">आठवडा ३</span><h3>जुळवणी</h3><p>पहिली प्रकरणे; शंकास्पद जुळवणी अधिकाऱ्यांकडून पडताळणी</p></div>
+      <div class="box key"><span class="chip c-ok">आठवडा ४</span><h3>पहिला अहवाल</h3><p>किती मालमत्ता करात नाहीत, संभाव्य मागणी किती</p></div>
+    </div>
+    <div class="spacer"></div>
+    <p class="lead">त्यानंतर: नियमित file, आणि ज्या विभागांना शक्य त्यांच्याशी API जोडणी.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Data जोडणी</span><span class="pg"></span></div>
+</section>
+
+<!-- 12 -->
+<section class="slide">
+  <div class="in">
+    <div class="eyebrow">संदर्भ</div>
+    <h2>स्रोत</h2>
+    <ul class="clean small">
+      <li>Pune Pulse: "Pune Municipal Corporation seeks help from MSEDCL to survey commercial property tax defaulters"</li>
+      <li>Bajaj Housing Finance, IGR Maharashtra guide: नोंदणीवेळी UIDAI, Income Tax, भूमी अभिलेख, MCGM, GRAS सोबत data देवाणघेवाण</li>
+      <li>API Setu (apisetu.gov.in): IGR Maharashtra, DigiLocker मधील Leave &amp; License प्रमाणपत्रे</li>
+      <li>Deccan Herald: BBMP–BESCOM cross-verification (६७ लाख जोडण्या; १२,००३ मालमत्ता; ₹१३१ कोटी)</li>
+      <li>महाभूमी (mahabhumi.gov.in), IGR eSearch (freesearchigrservice.maharashtra.gov.in), MahaRERA प्रकल्प शोध</li>
+    </ul>
+    <div class="spacer"></div>
+    <p class="small">"सार्वजनिक API आढळला नाही" याचा अर्थ: सार्वजनिक माहितीत आढळला नाही. विभागांकडे अंतर्गत सोय असू शकते; नोडल अधिकाऱ्यांशी चर्चेत खात्री करावी.</p>
+  </div>
+  <div class="foot"><span>महा पासपोर्ट · Data जोडणी</span><span class="pg"></span></div>
+</section>
+
+</main>
+<div class="hint">← → पुढे/मागे · Esc बाहेर</div>
+
+<script>
+(function(){
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var i=0;
+  function show(n){ i=Math.max(0,Math.min(slides.length-1,n)); slides.forEach(function(s,k){s.classList.toggle('on',k===i)}) }
+  function start(){document.body.classList.add('present');show(i)}
+  function stop(){ document.body.classList.remove('present'); slides.forEach(function(s){s.classList.remove('on')}); slides[i].scrollIntoView({block:'start'}) }
+  document.getElementById('present').addEventListener('click',function(){i=0;start()});
+  document.addEventListener('keydown',function(e){
+    if(!document.body.classList.contains('present'))return;
+    if(['ArrowRight','PageDown',' '].indexOf(e.key)>-1){e.preventDefault();show(i+1)}
+    else if(['ArrowLeft','PageUp'].indexOf(e.key)>-1){e.preventDefault();show(i-1)}
+    else if(e.key==='Escape'){stop()}
+  });
+  document.getElementById('deck').addEventListener('click',function(e){
+    if(!document.body.classList.contains('present'))return;
+    show(e.clientX<window.innerWidth/3?i-1:i+1);
+  });
+})();
+</script>
